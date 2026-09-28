@@ -11,11 +11,10 @@
    provided by an enabled chart or by k3s itself. Otherwise the sync fails until a later stage
    is turned on.
 
-Needs: python3 + PyYAML, helm and kubeconform (on PATH, or in .bin/ via scripts/install-tools.sh).
+Needs: python3 + PyYAML, helm and kubeconform on PATH.
 Usage: scripts/validate.py [--k8s-version 1.36.0]
 """
 import argparse
-import os
 import pathlib
 import subprocess
 import sys
@@ -24,7 +23,6 @@ import tempfile
 import yaml
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-os.environ["PATH"] = f"{ROOT / '.bin'}{os.pathsep}{os.environ['PATH']}"
 SCHEMAS = [
     "default",
     "https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json",

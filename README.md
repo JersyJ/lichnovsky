@@ -1,6 +1,6 @@
-# lichnovsky.eu
+# lichnovsky
 
-GitOps repository for **lichnovsky.eu**, the website and homelab: k3s on a Raspberry Pi 5,
+GitOps repository (github.com/JersyJ/lichnovsky) for **lichnovsky.eu**, the website and homelab: k3s on a Raspberry Pi 5,
 driven by Argo CD. Public apps go through Cloudflare Tunnel, private ones through the LAN and
 Tailscale. Nightly encrypted backups go to the Pi's SD card; alerts go to Discord.
 
@@ -23,7 +23,7 @@ here (`apps/web/website`); see the image contract in the guide, §11.
 
 1. Read **[docs/guide.md](docs/guide.md)**: architecture, RAM budget, and the step-by-step build.
 2. Replace the placeholders: `grep -rn CHANGEME .`
-3. Tooling: `scripts/install-tools.sh` (helm + kubeconform into `.bin/`), then `prek install`
+3. Tooling: install kubectl, helm, kubeseal, kubeconform, prek and OpenTofu (via tenv); then `prek install`
    for the git hooks.
 4. The cluster comes up in **five stages**: only `argocd/*.yaml` is deployed, and the rest waits in
    `argocd/later/` ([how to enable a stage](argocd/later/README.md)).

@@ -1,6 +1,5 @@
 extends: default
 ignore: |
-  .bin/
   .secrets/
 rules:
   line-length: { max: 130 }

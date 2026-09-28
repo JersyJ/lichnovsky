@@ -2,7 +2,6 @@
 #   prek install          # installs both hook types listed below
 #   prek run --all-files  # run everything once, on demand
 default_install_hook_types: [pre-commit, pre-push]
-exclude: ^\.bin/
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -44,7 +43,7 @@ repos:
         pass_filenames: false
 
       # Slow (downloads charts and schemas), so it runs on push, not on every commit.
-      # Needs helm + kubeconform: scripts/install-tools.sh puts them in .bin/.
+      # Needs helm and kubeconform on PATH.
       - id: validate-manifests
         name: helm render + kubeconform (scripts/validate.py)
         entry: scripts/validate.py

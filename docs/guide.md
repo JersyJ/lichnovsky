@@ -34,7 +34,7 @@ cloud storage costs. A second Pi can join later.
 ## 1. Architecture
 
 ```
-                               GitHub: lichnovsky.eu (private repo)
+                               GitHub: JersyJ/lichnovsky (private repo)
                                             │  git push
                                             ▼
                                 ┌────────────────────────┐
@@ -158,7 +158,7 @@ reaches them through split DNS.
 ## 4. Repository layout, sync order and staged rollout
 
 ```
-lichnovsky.eu/
+lichnovsky/                    # github.com/JersyJ/lichnovsky
 ├── bootstrap/
 │   ├── argocd-values.yaml     # Argo CD Helm values (used by bootstrap AND by Argo CD itself)
 │   └── root.yaml              # the only thing you kubectl-apply: syncs argocd/
@@ -181,7 +181,6 @@ lichnovsky.eu/
 │   ├── secrets.sh             # init/seal workflow for Sealed Secrets
 │   ├── secret-templates/      # every Secret the cluster needs, with placeholders
 │   ├── validate.py            # helm-render every chart + kubeconform + stage check, offline
-│   ├── install-tools.sh       # helm + kubeconform into .bin/ (git-ignored)
 │   └── check-no-plaintext-secrets.sh   # git hook: blocks committing a plaintext Secret
 ├── .pre-commit-config.yaml    # git hooks, run with prek
 ├── renovate.json
@@ -224,10 +223,9 @@ ServiceMonitor lives with the stage-2 monitors), and `scripts/validate.py` enfor
 - **`scripts/validate.py`** renders every chart (all stages) with its pinned version and values,
   validates the ~400 resources, CRDs included, with kubeconform, and runs the **stage check**:
   any custom resource in an *enabled* app must have its CRD installed by an enabled chart or by k3s.
-  It uses `helm`/`kubeconform` from `PATH` or from `.bin/` (`scripts/install-tools.sh`).
+  It needs `helm` and `kubeconform` on `PATH`.
 - **Git hooks with [prek](https://github.com/j178/prek)** (`.pre-commit-config.yaml`):
   ```bash
-  scripts/install-tools.sh   # helm + kubeconform into .bin/
   prek install               # installs pre-commit and pre-push hooks
   ```
   - On every commit: whitespace/EOF fixes, YAML/JSON syntax, merge markers, large files, private
@@ -247,9 +245,9 @@ ServiceMonitor lives with the stage-2 monitors), and `scripts/validate.py` enfor
 3. **Tailscale account.** In the tailnet policy, add `tagOwners` for `tag:k8s-operator` and `tag:k8s`.
    Then create the operator's OAuth client
    ([KB 1236](https://tailscale.com/kb/1236/kubernetes-operator) lists the current scopes).
-4. **Private GitHub repo** named `lichnovsky.eu`. Push this folder to it, then replace every
+4. **Private GitHub repo** `JersyJ/lichnovsky`. Push this folder to it, then replace every
    `CHANGEME` (`grep -rn CHANGEME .`):
-   - `git@github.com:JersyJ/lichnovsky.eu.git` → your repo URL (in `bootstrap/root.yaml` and `argocd/*.yaml`):
+   - `git@github.com:JersyJ/lichnovsky.git` → your repo URL (in `bootstrap/root.yaml` and `argocd/*.yaml`):
      `grep -rl 'github.com/JersyJ/' . | xargs sed -i 's#github.com/JersyJ/#github.com/<your-user>/#'`
    - `192.168.50.244` → the Pi's reserved IP (`host/k3s-config.yaml`, Tailscale Connector, AdGuard notes)
    - ACME e-mail in `apps/platform/cert-manager-issuers/letsencrypt.yaml`
@@ -259,7 +257,7 @@ ServiceMonitor lives with the stage-2 monitors), and `scripts/validate.py` enfor
    and under Integrations add the same Discord webhook, so that a dead Pi also reaches Discord.
 7. **Workstation tools:** `kubectl`, `kubeseal` (v0.40.x, to match the controller), `openssl`, [prek](https://github.com/j178/prek),
    and OpenTofu via [tenv](https://github.com/tofuutils/tenv) (`tenv tofu install` reads
-   `.opentofu-version`). `scripts/install-tools.sh` fetches `helm` and `kubeconform`. Optional: `argocd` CLI, `k9s`.
+   `.opentofu-version`), `helm`, `kubeconform`. Optional: `argocd` CLI, `k9s`.
 
 ---
 
@@ -365,11 +363,11 @@ helm install argocd argo/argo-cd -n argocd --create-namespace --version 10.9.2 \
 # 2. Give Argo CD read access to the private repo with a read-only DEPLOY KEY.
 #    (Repo-scoped, not tied to your account, no expiry. GitHub's host keys ship with Argo CD.)
 ssh-keygen -t ed25519 -N '' -C argocd@lichnovsky.eu -f ~/.config/lichnovsky/argocd-deploy-key
-#    GitHub -> JersyJ/lichnovsky.eu -> Settings -> Deploy keys -> Add: paste the .pub, leave
+#    GitHub -> JersyJ/lichnovsky -> Settings -> Deploy keys -> Add: paste the .pub, leave
 #    "Allow write access" OFF. Keep the private key in your password manager as well.
 kubectl -n argocd create secret generic repo-lichnovsky \
   --from-literal=type=git \
-  --from-literal=url=git@github.com:JersyJ/lichnovsky.eu.git \
+  --from-literal=url=git@github.com:JersyJ/lichnovsky.git \
   --from-file=sshPrivateKey=$HOME/.config/lichnovsky/argocd-deploy-key
 kubectl -n argocd label secret repo-lichnovsky argocd.argoproj.io/secret-type=repository
 
