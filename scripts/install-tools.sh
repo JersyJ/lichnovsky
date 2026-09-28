@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Download the CLI tools that scripts/validate.py and the git hooks need into .bin/ (git-ignored).
+# kubeseal, kubectl and OpenTofu are installed separately (see docs/guide.md, Phase 0).
 # OpenTofu isn't included: install it with tenv, which reads the version from .opentofu-version.
 # Linux/macOS, amd64/arm64.
 set -euo pipefail

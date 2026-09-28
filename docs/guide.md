@@ -249,7 +249,7 @@ ServiceMonitor lives with the stage-2 monitors), and `scripts/validate.py` enfor
    ([KB 1236](https://tailscale.com/kb/1236/kubernetes-operator) lists the current scopes).
 4. **Private GitHub repo** named `lichnovsky.eu`. Push this folder to it, then replace every
    `CHANGEME` (`grep -rn CHANGEME .`):
-   - `https://github.com/JersyJ/lichnovsky.eu.git` → your repo URL (in `bootstrap/root.yaml` and `argocd/*.yaml`):
+   - `git@github.com:JersyJ/lichnovsky.eu.git` → your repo URL (in `bootstrap/root.yaml` and `argocd/*.yaml`):
      `grep -rl 'github.com/JersyJ/' . | xargs sed -i 's#github.com/JersyJ/#github.com/<your-user>/#'`
    - `192.168.50.244` → the Pi's reserved IP (`host/k3s-config.yaml`, Tailscale Connector, AdGuard notes)
    - ACME e-mail in `apps/platform/cert-manager-issuers/letsencrypt.yaml`
@@ -257,7 +257,7 @@ ServiceMonitor lives with the stage-2 monitors), and `scripts/validate.py` enfor
    `#homelab-alerts`) → Edit Channel → Integrations → Webhooks → *New Webhook* → copy the URL.
 6. **healthchecks.io** (free): a new check with *Period 5 min*, *Grace 10 min*. Copy its ping URL,
    and under Integrations add the same Discord webhook, so that a dead Pi also reaches Discord.
-7. **Workstation tools:** `kubectl`, `kubeseal`, `openssl`, [prek](https://github.com/j178/prek),
+7. **Workstation tools:** `kubectl`, `kubeseal` (v0.40.x, to match the controller), `openssl`, [prek](https://github.com/j178/prek),
    and OpenTofu via [tenv](https://github.com/tofuutils/tenv) (`tenv tofu install` reads
    `.opentofu-version`). `scripts/install-tools.sh` fetches `helm` and `kubeconform`. Optional: `argocd` CLI, `k9s`.
 
@@ -362,12 +362,15 @@ helm repo add argo https://argoproj.github.io/argo-helm
 helm install argocd argo/argo-cd -n argocd --create-namespace --version 10.9.2 \
   -f bootstrap/argocd-values.yaml
 
-# 2. Give Argo CD read access to the private repo (read-only deploy key or fine-grained PAT)
+# 2. Give Argo CD read access to the private repo with a read-only DEPLOY KEY.
+#    (Repo-scoped, not tied to your account, no expiry. GitHub's host keys ship with Argo CD.)
+ssh-keygen -t ed25519 -N '' -C argocd@lichnovsky.eu -f ~/.config/lichnovsky/argocd-deploy-key
+#    GitHub -> JersyJ/lichnovsky.eu -> Settings -> Deploy keys -> Add: paste the .pub, leave
+#    "Allow write access" OFF. Keep the private key in your password manager as well.
 kubectl -n argocd create secret generic repo-lichnovsky \
   --from-literal=type=git \
-  --from-literal=url=https://github.com/JersyJ/lichnovsky.eu.git \
-  --from-literal=username=git \
-  --from-literal=password=<fine-grained PAT, contents:read on this repo only>
+  --from-literal=url=git@github.com:JersyJ/lichnovsky.eu.git \
+  --from-file=sshPrivateKey=$HOME/.config/lichnovsky/argocd-deploy-key
 kubectl -n argocd label secret repo-lichnovsky argocd.argoproj.io/secret-type=repository
 
 # 3. Hand over to GitOps

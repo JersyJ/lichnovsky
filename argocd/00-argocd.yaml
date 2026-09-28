@@ -16,7 +16,7 @@ spec:
         releaseName: argocd
         valueFiles:
           - $values/bootstrap/argocd-values.yaml
-    - repoURL: https://github.com/JersyJ/lichnovsky.eu.git
+    - repoURL: git@github.com:JersyJ/lichnovsky.eu.git
       targetRevision: main
       ref: values
   destination:
