@@ -1,0 +1,29 @@
+# Customises the Traefik that k3s ships (Traefik v3). k3s's helm-controller merges these values in.
+# https://docs.k3s.io/helm#customizing-packaged-components-with-helmchartconfig
+apiVersion: helm.cattle.io/v1
+kind: HelmChartConfig
+metadata:
+  name: traefik
+  namespace: kube-system
+spec:
+  valuesContent: |-
+    # Trust X-Forwarded-* headers from pods (cloudflared). Apps then see the real
+    # client IP and scheme (https) instead of the cloudflared pod's IP.
+    ports:
+      web:
+        forwardedHeaders:
+          trustedIPs: ["10.42.0.0/16"]
+      websecure:
+        forwardedHeaders:
+          trustedIPs: ["10.42.0.0/16"]
+    # Metrics Service for the ServiceMonitor in apps/monitoring/monitors.
+    metrics:
+      prometheus:
+        service:
+          enabled: true
+    resources:
+      requests: { cpu: 50m, memory: 64Mi }
+      limits: { memory: 256Mi }
+    logs:
+      access:
+        enabled: true

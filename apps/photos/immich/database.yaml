@@ -1,0 +1,138 @@
+# Postgres for Immich, run by CloudNativePG. The image is CNPG-compatible Postgres with VectorChord
+# (Immich's vector search extension; accepted range >= 0.3, < 2.0). CNPG creates the Secret
+# `immich-db-app` (keys: username, password, host, dbname, uri, ...) that immich-server reads.
+#
+# Backup: a nightly pg_dump into the `immich-db-dumps` PVC, which k8up copies to the backup disk.
+# (CNPG's Barman Cloud plugin needs S3-compatible storage. Add it back if you later get an R2/S3
+# bucket, for continuous WAL archiving and point-in-time recovery.)
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: immich-db
+  namespace: photos
+spec:
+  instances: 1
+  imageName: ghcr.io/tensorchord/cloudnative-vectorchord:17.11-1.1.1
+  postgresql:
+    shared_preload_libraries: ["vchord.so"]
+    parameters:
+      shared_buffers: "128MB"
+      max_connections: "50"
+      max_wal_size: "1GB"
+  bootstrap:
+    initdb:
+      database: immich
+      owner: immich
+      # Runs as superuser inside the app database, so Immich never needs superuser rights.
+      postInitApplicationSQL:
+        - CREATE EXTENSION IF NOT EXISTS vchord CASCADE;
+        - CREATE EXTENSION IF NOT EXISTS earthdistance CASCADE;
+  storage:
+    storageClass: local-path
+    size: 10Gi
+  resources:
+    requests: { cpu: 50m, memory: 256Mi }
+    limits: { memory: 768Mi }
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: immich-db-dumps
+  namespace: photos
+  annotations:
+    k8up.io/backup: "true"
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 5Gi
+---
+# Logical dump in custom format (compressed, and pg_restore can restore selectively).
+# Runs at 03:00, before the k8up backup of the photos namespace, and keeps the last 7 dumps.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: immich-db-dump
+  namespace: photos
+spec:
+  schedule: "0 3 * * *"
+  timeZone: Europe/Prague
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: OnFailure
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 26          # "postgres" in CNPG images
+            runAsGroup: 26
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: pg-dump
+              image: ghcr.io/tensorchord/cloudnative-vectorchord:17.11-1.1.1   # same pg_dump as the server
+              command: ["/bin/sh", "-c"]
+              args:
+                - |
+                  set -eu
+                  f=/dumps/immich-$(date +%Y%m%d-%H%M%S).dump
+                  pg_dump --format=custom --no-owner --file="$f.tmp"
+                  mv "$f.tmp" "$f"
+                  ls -1t /dumps/immich-*.dump | tail -n +8 | xargs -r rm -f
+                  ls -la /dumps
+              env:
+                - { name: PGHOST, value: immich-db-rw }
+                - name: PGUSER
+                  valueFrom: { secretKeyRef: { name: immich-db-app, key: username } }
+                - name: PGPASSWORD
+                  valueFrom: { secretKeyRef: { name: immich-db-app, key: password } }
+                - name: PGDATABASE
+                  valueFrom: { secretKeyRef: { name: immich-db-app, key: dbname } }
+              volumeMounts:
+                - { name: dumps, mountPath: /dumps }
+              resources:
+                requests: { cpu: 50m, memory: 64Mi }
+                limits: { memory: 256Mi }
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: ["ALL"]
+          volumes:
+            - name: dumps
+              persistentVolumeClaim:
+                claimName: immich-db-dumps
+---
+# Postgres metrics (cnpg_*) for the CloudNativePG dashboard. Defined here, because
+# `spec.monitoring.enablePodMonitor` is deprecated in CNPG 1.30.
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: immich-db
+  namespace: photos
+spec:
+  selector:
+    matchLabels:
+      cnpg.io/cluster: immich-db
+  podMetricsEndpoints:
+    - port: metrics
+      interval: 60s
+---
+# CloudNativePG operator metrics. The CNPG dashboard (20417) reads controller_runtime_* from it for
+# its "operator namespace" dropdown. It lives here so it only appears with CNPG (stage 5).
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: cnpg-operator
+  namespace: cnpg-system
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cloudnative-pg
+  podMetricsEndpoints:
+    - port: metrics
+      interval: 60s

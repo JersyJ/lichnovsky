@@ -1,0 +1,151 @@
+# Jellyfin, for LAN and Tailscale only (Cloudflare's CDN terms forbid proxying video from your own
+# origin, so there is deliberately NO public hostname for it in the tunnel).
+#
+# The Pi 5 has NO hardware video encoder, and Jellyfin has deprecated V4L2 acceleration on the Pi.
+# Plan for DIRECT PLAY: keep media in formats your clients can play (H.264/HEVC + AAC in MP4/MKV),
+# set a high remote bitrate limit, and treat CPU transcoding (roughly one 1080p stream at most) as a
+# fallback. For regular transcoding, run Jellyfin on an Intel N100/N150 box (QuickSync) instead.
+#
+# Media lives on the host at /srv/media (a directory on the SSD or a second disk), exposed as a
+# local PersistentVolume. That avoids hostPath, which the baseline Pod Security level blocks.
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: media-library
+spec:
+  capacity:
+    storage: 1Ti
+  accessModes: ["ReadWriteOnce"]
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-media
+  local:
+    path: /srv/media          # created by host/setup-pi.sh on rpi-01
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values: [rpi-01]
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: media-library
+  namespace: media
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: local-media
+  volumeName: media-library
+  resources:
+    requests:
+      storage: 1Ti
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: jellyfin-config
+  namespace: media
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jellyfin
+  namespace: media
+  labels:
+    app: jellyfin
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: jellyfin
+  template:
+    metadata:
+      labels:
+        app: jellyfin
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: jellyfin
+          image: jellyfin/jellyfin:12.1
+          env:
+            - { name: TZ, value: "Europe/Prague" }
+            - { name: JELLYFIN_PublishedServerUrl, value: "https://tv.lichnovsky.eu" }
+          ports:
+            - name: http
+              containerPort: 8096
+          volumeMounts:
+            - { name: config, mountPath: /config }
+            - { name: cache, mountPath: /cache }
+            - { name: media, mountPath: /media, readOnly: true }
+          readinessProbe:
+            httpGet: { path: /health, port: http }
+            periodSeconds: 15
+          livenessProbe:
+            httpGet: { path: /health, port: http }
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { memory: 1Gi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: jellyfin-config
+        - name: cache
+          emptyDir:
+            sizeLimit: 5Gi
+        - name: media
+          persistentVolumeClaim:
+            claimName: media-library
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jellyfin
+  namespace: media
+spec:
+  selector:
+    app: jellyfin
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
+# Resolves only through AdGuard (LAN) or Tailscale split DNS. It is not published in Cloudflare.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: jellyfin
+  namespace: media
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: tv.lichnovsky.eu
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: jellyfin
+                port:
+                  number: 80

@@ -1,0 +1,120 @@
+# Papra: document archiving. Rootless image; SQLite DB and documents both live under /app/app-data.
+# Secrets: SealedSecret `papra` with key AUTH_SECRET (>= 32 chars: `openssl rand -hex 48`).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: papra-data
+  annotations:
+    k8up.io/backup: "true"
+  namespace: documents
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: papra
+  namespace: documents
+  labels:
+    app: papra
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: papra
+  template:
+    metadata:
+      labels:
+        app: papra
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999           # "nonroot" in the rootless image (checked in its /etc/passwd)
+        runAsGroup: 999
+        fsGroup: 999
+        seccompProfile:
+          type: RuntimeDefault
+      # The image creates app-data/db and app-data/documents at build time, but the PVC mounted
+      # over /app/app-data hides them, and SQLite can't create its parent directory.
+      initContainers:
+        - name: init-dirs
+          image: ghcr.io/papra-hq/papra:26.6.2-rootless
+          command: ["mkdir", "-p", "/app/app-data/db", "/app/app-data/documents"]
+          volumeMounts:
+            - { name: data, mountPath: /app/app-data }
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+      containers:
+        - name: papra
+          image: ghcr.io/papra-hq/papra:26.6.2-rootless
+          env:
+            - { name: APP_BASE_URL, value: "https://docs.lichnovsky.eu" }
+            - { name: TZ, value: "Europe/Prague" }
+            - name: AUTH_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: papra
+                  key: AUTH_SECRET
+          ports:
+            - name: http
+              containerPort: 1221
+          volumeMounts:
+            - { name: data, mountPath: /app/app-data }
+          readinessProbe:
+            tcpSocket: { port: http }
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket: { port: http }
+            initialDelaySeconds: 20
+            periodSeconds: 30
+          resources:
+            requests: { cpu: 25m, memory: 128Mi }
+            limits: { memory: 512Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: papra-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: papra
+  namespace: documents
+spec:
+  selector:
+    app: papra
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: papra
+  namespace: documents
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: docs.lichnovsky.eu
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: papra
+                port:
+                  number: 80

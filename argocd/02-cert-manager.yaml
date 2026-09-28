@@ -1,0 +1,44 @@
+# cert-manager: issues the wildcard *.lichnovsky.eu certificate for LAN/Tailscale HTTPS
+# (Let's Encrypt DNS-01 via Cloudflare).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cert-manager
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-9"
+spec:
+  project: default
+  source:
+    repoURL: https://charts.jetstack.io
+    chart: cert-manager
+    targetRevision: v1.20.4
+    helm:
+      valuesObject:
+        crds:
+          enabled: true
+          keep: true
+        resources:
+          requests: { cpu: 10m, memory: 48Mi }
+          limits: { memory: 160Mi }
+        webhook:
+          resources:
+            requests: { cpu: 10m, memory: 24Mi }
+            limits: { memory: 64Mi }
+        cainjector:
+          resources:
+            requests: { cpu: 10m, memory: 48Mi }
+            limits: { memory: 160Mi }
+        # Resolve through public DNS so the DNS-01 self-check isn't fooled by AdGuard rewrites.
+        dns01RecursiveNameservers: "1.1.1.1:53,9.9.9.9:53"
+        dns01RecursiveNameserversOnly: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cert-manager
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

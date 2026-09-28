@@ -1,0 +1,61 @@
+# Values for the argo-cd Helm chart (argoproj/argo-helm).
+# Used twice: once by `helm install` during bootstrap, then by argocd/00-argocd.yaml so
+# Argo CD manages itself from Git. Change it here and push; Argo CD upgrades itself.
+global:
+  domain: argocd.lichnovsky.eu
+
+configs:
+  params:
+    # TLS ends at Cloudflare (public) or Traefik (LAN), so argocd-server serves plain HTTP.
+    server.insecure: true
+  cm:
+    admin.enabled: true
+    exec.enabled: false
+    statusbadge.enabled: false
+    timeout.reconciliation: 180s
+    # Health check for Application resources. Without it, sync-waves in the app-of-apps don't
+    # wait: Argo CD doesn't health-check child Applications by default.
+    resource.customizations.health.argoproj.io_Application: |
+      hs = {}
+      hs.status = "Progressing"
+      hs.message = ""
+      if obj.status ~= nil then
+        if obj.status.health ~= nil then
+          hs.status = obj.status.health.status
+          if obj.status.health.message ~= nil then
+            hs.message = obj.status.health.message
+          end
+        end
+      end
+      return hs
+
+# Tuned down for a single 8 GB Raspberry Pi.
+controller:
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { memory: 768Mi }
+repoServer:
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits: { memory: 512Mi }
+server:
+  resources:
+    requests: { cpu: 25m, memory: 64Mi }
+    limits: { memory: 256Mi }
+  ingress:
+    enabled: true
+    ingressClassName: traefik
+redis:
+  resources:
+    requests: { cpu: 10m, memory: 32Mi }
+    limits: { memory: 128Mi }
+applicationSet:
+  resources:
+    requests: { cpu: 10m, memory: 32Mi }
+    limits: { memory: 128Mi }
+# SSO is handled by Cloudflare Access in front of argocd.lichnovsky.eu, so Dex isn't needed.
+dex:
+  enabled: false
+# Turn this on later if you want Argo CD to post to Discord/Telegram/ntfy.
+notifications:
+  enabled: false

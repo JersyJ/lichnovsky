@@ -1,0 +1,167 @@
+# Vaultwarden (Bitwarden-compatible server). SQLite on the local SSD.
+# Secrets: SealedSecret `vaultwarden` with key ADMIN_TOKEN (an argon2 PHC string; see docs/guide.md).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: vaultwarden-data
+  annotations:
+    k8up.io/backup: "true"
+  namespace: security
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vaultwarden
+  namespace: security
+  labels:
+    app: vaultwarden
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate          # SQLite: never run two writers at once
+  selector:
+    matchLabels:
+      app: vaultwarden
+  template:
+    metadata:
+      labels:
+        app: vaultwarden
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: vaultwarden
+          image: vaultwarden/server:1.37.3
+          env:
+            - { name: DOMAIN, value: "https://vault.lichnovsky.eu" }
+            - { name: ROCKET_PORT, value: "8080" }      # non-root can't bind :80
+            - { name: SIGNUPS_ALLOWED, value: "false" } # create users via /admin invitations
+            - { name: INVITATIONS_ALLOWED, value: "true" }
+            - { name: SHOW_PASSWORD_HINT, value: "false" }
+            - { name: IP_HEADER, value: "CF-Connecting-IP" }  # real client IP for logs/fail2ban
+            - { name: TZ, value: "Europe/Prague" }
+            - name: ADMIN_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: vaultwarden
+                  key: ADMIN_TOKEN
+            # WebSocket notifications run on the main port since 1.29; WEBSOCKET_ENABLED is obsolete.
+          ports:
+            - name: http
+              containerPort: 8080
+          volumeMounts:
+            - { name: data, mountPath: /data }
+            - { name: tmp, mountPath: /tmp }
+          readinessProbe:
+            httpGet: { path: /alive, port: http }
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /alive, port: http }
+            initialDelaySeconds: 15
+            periodSeconds: 30
+          resources:
+            requests: { cpu: 10m, memory: 48Mi }
+            limits: { memory: 256Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: vaultwarden-data
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vaultwarden
+  namespace: security
+spec:
+  selector:
+    app: vaultwarden
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: vaultwarden
+  namespace: security
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: vault.lichnovsky.eu
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: vaultwarden
+                port:
+                  number: 80
+---
+# Consistent SQLite snapshot for k8up to pick up. A plain file copy of a live WAL-mode
+# database can be torn. `vaultwarden backup` runs `VACUUM INTO` and writes
+# /data/db_<UTC timestamp>.sqlite3. Runs 30 min before the nightly k8up backup and keeps the last 7.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: vaultwarden-sqlite-snapshot
+  namespace: security
+spec:
+  schedule: "30 2 * * *"
+  timeZone: Europe/Prague
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: OnFailure
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
+            seccompProfile:
+              type: RuntimeDefault
+          # RWO + local-path: the job must run on the same node as the volume (automatic on 1 node).
+          containers:
+            - name: snapshot
+              image: vaultwarden/server:1.37.3
+              command: ["/bin/sh", "-c"]
+              args:
+                - |
+                  set -eu
+                  /vaultwarden backup
+                  ls -1t /data/db_*.sqlite3 | tail -n +8 | xargs -r rm -f
+                  ls -la /data/db_*.sqlite3
+              volumeMounts:
+                - { name: data, mountPath: /data }
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: ["ALL"]
+          volumes:
+            - name: data
+              persistentVolumeClaim:
+                claimName: vaultwarden-data

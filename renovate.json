@@ -1,0 +1,69 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":dependencyDashboard",
+    ":semanticCommits"
+  ],
+  "timezone": "Europe/Prague",
+  "schedule": [
+    "* 6-22 * * 6"
+  ],
+  "prConcurrentLimit": 5,
+  "argocd": {
+    "managerFilePatterns": [
+      "/^argocd/.+\\.yaml$/",
+      "/^bootstrap/.+\\.yaml$/"
+    ]
+  },
+  "kubernetes": {
+    "managerFilePatterns": [
+      "/^apps/.+\\.yaml$/"
+    ]
+  },
+  "packageRules": [
+    {
+      "description": "Group patch updates of charts and images into one weekly PR",
+      "matchUpdateTypes": [
+        "patch",
+        "digest"
+      ],
+      "groupName": "weekly patch updates"
+    },
+    {
+      "description": "Major bumps always get their own PR (read the release notes!)",
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "dependencyDashboardApproval": true
+    },
+    {
+      "description": "Immich server and ML must stay on the same version",
+      "matchPackageNames": [
+        "ghcr.io/immich-app/immich-server",
+        "ghcr.io/immich-app/immich-machine-learning"
+      ],
+      "groupName": "immich"
+    },
+    {
+      "description": "Postgres+VectorChord image: update by hand (major = pg_upgrade/dump-restore; check Immich's supported VectorChord range first)",
+      "matchPackageNames": [
+        "ghcr.io/tensorchord/cloudnative-vectorchord"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "Papra publishes -root and -rootless variants; stay on rootless",
+      "matchPackageNames": [
+        "ghcr.io/papra-hq/papra"
+      ],
+      "versioning": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)-rootless$"
+    },
+    {
+      "matchPackageNames": [
+        "louislam/uptime-kuma"
+      ],
+      "versioning": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)-rootless$"
+    }
+  ]
+}

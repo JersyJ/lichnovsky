@@ -1,0 +1,21 @@
+# Plaintext secrets live here before they are sealed. NEVER commit this folder.
+.secrets/*
+!.secrets/README.md
+
+# Sealed Secrets controller key backups
+*.key
+sealed-secrets-key*.yaml
+
+# Local tooling
+.bin/
+*.tgz
+.DS_Store
+
+# OpenTofu (the lock file IS committed; state lives encrypted in R2)
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+infra/**/plan
+infra/**/plan.txt
+crash.log

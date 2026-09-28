@@ -1,0 +1,39 @@
+# Let's Encrypt via DNS-01 on Cloudflare: works with no inbound port open.
+# Needs a Cloudflare API token with Zone:DNS:Edit on lichnovsky.eu, stored in the
+# SealedSecret `cloudflare-api-token` (namespace cert-manager, key `api-token`).
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: dlichnovsky1@gmail.com   # Let's Encrypt expiry notices only (rare)
+    privateKeySecretRef:
+      name: letsencrypt-account-key
+    solvers:
+      - dns01:
+          cloudflare:
+            apiTokenSecretRef:
+              name: cloudflare-api-token
+              key: api-token
+        selector:
+          dnsZones: ["lichnovsky.eu"]
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: wildcard-lichnovsky-eu
+  namespace: kube-system
+spec:
+  secretName: wildcard-lichnovsky-eu-tls
+  issuerRef:
+    name: letsencrypt
+    kind: ClusterIssuer
+  dnsNames:
+    - lichnovsky.eu
+    - "*.lichnovsky.eu"
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+    rotationPolicy: Always

@@ -1,0 +1,183 @@
+# Prometheus Operator + Prometheus + Alertmanager + Grafana + node-exporter + kube-state-metrics.
+# Wave -7: it installs the ServiceMonitor/PodMonitor CRDs that later apps use.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kube-prometheus-stack
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-7"
+spec:
+  project: default
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: kube-prometheus-stack
+    targetRevision: 91.8.1
+    helm:
+      valuesObject:
+        # k3s runs controller-manager, scheduler, proxy and etcd inside one process and doesn't
+        # expose them on the standard ports by default. Skip those scrape jobs and their alerts.
+        kubeControllerManager: { enabled: false }
+        kubeScheduler: { enabled: false }
+        kubeProxy: { enabled: false }
+        kubeEtcd: { enabled: false }
+        defaultRules:
+          rules:
+            etcd: false
+            kubeControllerManager: false
+            kubeSchedulerAlerting: false
+            kubeSchedulerRecording: false
+            kubeProxy: false
+
+        prometheus:
+          prometheusSpec:
+            # Chart defaults: 30s scrape / 10d retention. Scrape less often (RAM), keep longer (disk is
+            # cheap on the 1 TB NVMe; retention barely affects RAM).
+            scrapeInterval: 60s
+            evaluationInterval: 60s
+            retention: 30d
+            retentionSize: 20GB          # hard cap on disk use, whichever limit is hit first
+            walCompression: true
+            # Pick up every ServiceMonitor/PodMonitor/Rule in the cluster, labelled or not.
+            serviceMonitorSelectorNilUsesHelmValues: false
+            podMonitorSelectorNilUsesHelmValues: false
+            ruleSelectorNilUsesHelmValues: false
+            probeSelectorNilUsesHelmValues: false
+            resources:
+              requests: { cpu: 100m, memory: 512Mi }
+              limits: { memory: 1Gi }
+            storageSpec:
+              volumeClaimTemplate:
+                spec:
+                  storageClassName: local-path
+                  accessModes: ["ReadWriteOnce"]
+                  resources:
+                    requests:
+                      storage: 25Gi
+
+        alertmanager:
+          alertmanagerSpec:
+            resources:
+              requests: { cpu: 10m, memory: 32Mi }
+              limits: { memory: 96Mi }
+            # SealedSecret `alertmanager-notify` (apps/platform/secrets), mounted at
+            # /etc/alertmanager/secrets/alertmanager-notify/. Keys: discord-webhook-url, healthchecks-url
+            secrets: [alertmanager-notify]
+          # Alerts go to Discord. Watchdog (always firing by design) pings healthchecks.io, which
+          # tells you on Discord when the pings STOP: Pi dead, power/ISP down, Prometheus broken.
+          # The URLs are read from files (webhook_url_file / url_file), so they never sit in Git.
+          config:
+            global:
+              resolve_timeout: 5m
+            route:
+              receiver: discord
+              group_by: ["namespace", "alertname"]
+              group_wait: 30s
+              group_interval: 5m
+              repeat_interval: 12h
+              routes:
+                - receiver: heartbeat
+                  matchers: ['alertname = "Watchdog"']
+                  group_wait: 0s
+                  group_interval: 1m
+                  repeat_interval: 2m
+                - receiver: "null"
+                  matchers: ['alertname = "InfoInhibitor"']
+            # The chart's default inhibit rules (a critical alert mutes its warning/info twins).
+            inhibit_rules:
+              - source_matchers: ['severity = critical']
+                target_matchers: ['severity =~ warning|info']
+                equal: [namespace, alertname]
+              - source_matchers: ['severity = warning']
+                target_matchers: ['severity = info']
+                equal: [namespace, alertname]
+              - source_matchers: ['alertname = InfoInhibitor']
+                target_matchers: ['severity = info']
+                equal: [namespace]
+              - target_matchers: ['alertname = InfoInhibitor']
+            receivers:
+              - name: "null"
+              - name: discord
+                discord_configs:
+                  - webhook_url_file: /etc/alertmanager/secrets/alertmanager-notify/discord-webhook-url
+                    send_resolved: true
+              - name: heartbeat
+                webhook_configs:
+                  - url_file: /etc/alertmanager/secrets/alertmanager-notify/healthchecks-url
+                    send_resolved: false
+            templates:
+              - /etc/alertmanager/config/*.tmpl
+
+        prometheusOperator:
+          resources:
+            requests: { cpu: 20m, memory: 64Mi }
+            limits: { memory: 192Mi }
+
+        kube-state-metrics:
+          resources:
+            requests: { cpu: 10m, memory: 48Mi }
+            limits: { memory: 128Mi }
+
+        prometheus-node-exporter:
+          resources:
+            requests: { cpu: 10m, memory: 24Mi }
+            limits: { memory: 64Mi }
+
+        grafana:
+          admin:
+            existingSecret: grafana-admin      # SealedSecret in apps/platform (wave -8)
+            userKey: admin-user
+            passwordKey: admin-password
+          persistence:
+            enabled: true
+            storageClassName: local-path
+            size: 2Gi
+          resources:
+            requests: { cpu: 25m, memory: 128Mi }
+            limits: { memory: 384Mi }
+          ingress:
+            enabled: true
+            ingressClassName: traefik
+            hosts: [grafana.lichnovsky.eu]
+          # Loki datasource for Alloy-shipped logs.
+          additionalDataSources:
+            - name: Loki
+              type: loki
+              uid: loki
+              url: http://loki.monitoring.svc.cluster.local:3100
+              access: proxy
+          sidecar:
+            dashboards:
+              enabled: true
+              searchNamespace: ALL   # also pick up dashboard ConfigMaps you add to any app
+          # Community dashboards, downloaded from grafana.com at pod start. IDs and revisions
+          # were checked against grafana.com in 2026-09. Bump the revision on purpose to update.
+          dashboardProviders:
+            dashboardproviders.yaml:
+              apiVersion: 1
+              providers:
+                - name: homelab
+                  orgId: 1
+                  folder: Homelab
+                  type: file
+                  disableDeletion: true
+                  editable: false
+                  options:
+                    path: /var/lib/grafana/dashboards/homelab
+          dashboards:
+            homelab:
+              cloudflare-tunnel: { gnetId: 24874, revision: 4, datasource: Prometheus }
+              traefik:           { gnetId: 17347, revision: 9, datasource: Prometheus }
+              argocd:            { gnetId: 14584, revision: 1, datasource: Prometheus }
+              cloudnative-pg:    { gnetId: 20417, revision: 4, datasource: Prometheus }
+              logs-app:          { gnetId: 13639, revision: 2, datasource: Loki }
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true   # the CRDs are too big for client-side apply annotations

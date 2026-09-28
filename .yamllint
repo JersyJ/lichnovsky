@@ -1,0 +1,14 @@
+extends: default
+ignore: |
+  .bin/
+  .secrets/
+rules:
+  line-length: { max: 130 }
+  document-start: disable
+  comments: { min-spaces-from-content: 1 }
+  comments-indentation: disable
+  braces: { min-spaces-inside: 0, max-spaces-inside: 1 }
+  brackets: { min-spaces-inside: 0, max-spaces-inside: 1 }
+  colons: { max-spaces-after: -1 }   # allow aligned tables of flow mappings
+  truthy: { check-keys: false }
+  indentation: { indent-sequences: consistent }

@@ -1,0 +1,14 @@
+# Subnet router: advertises only the Pi's LAN address to your tailnet. Remote devices then reach
+# Traefik (and AdGuard DNS) at 192.168.50.244 exactly as they would at home.
+# After the first sync: approve the route in the Tailscale admin console (or use autoApprovers),
+# then add split DNS there: lichnovsky.eu -> 192.168.50.244 (AdGuard).
+apiVersion: tailscale.com/v1alpha1
+kind: Connector
+metadata:
+  name: pi-lan
+spec:
+  hostname: lichnovsky-lan
+  tags: ["tag:k8s"]
+  subnetRouter:
+    advertiseRoutes:
+      - 192.168.50.244/32    # the Pi (use 192.168.50.0/24 to reach the whole LAN)

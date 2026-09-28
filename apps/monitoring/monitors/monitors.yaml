@@ -1,0 +1,85 @@
+# Scrape targets and alert rules that go with the platform (stage 2). Anything that needs a
+# CRD from kube-prometheus-stack lives here or in a later stage, never in a stage-1 app.
+# Dashboards are imported from grafana.com by the Grafana chart
+# (argocd/later/stage-2-observability/10-kube-prometheus-stack.yaml).
+---
+# Traefik (k3s-bundled) metrics Service is enabled in apps/platform/traefik/helmchartconfig.yaml.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: traefik
+  namespace: kube-system
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: traefik   # only the metrics Service has a port named "metrics"
+  endpoints:
+    - port: metrics
+      interval: 60s
+---
+# Argo CD metrics. The Argo CD dashboard (14584) needs all four components: app/sync panels come from
+# the controller, git request panels from repo-server, API panels from server. Pods are scraped
+# directly, because Argo CD (wave -10) can't create ServiceMonitors before their CRD exists.
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: argocd
+  namespace: argocd
+spec:
+  selector:
+    matchExpressions:
+      - key: app.kubernetes.io/name
+        operator: In
+        values:
+          - argocd-application-controller
+          - argocd-repo-server
+          - argocd-server
+          - argocd-applicationset-controller
+  podMetricsEndpoints:
+    - port: metrics
+      interval: 60s
+---
+# cloudflared connector metrics (the Cloudflare Tunnel dashboard 24874 reads these).
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: cloudflared
+  namespace: networking
+spec:
+  selector:
+    matchLabels:
+      app: cloudflared
+  endpoints:
+    - port: metrics
+      interval: 60s
+---
+# Key alerts for a one-node homelab. The kube-prometheus-stack defaults already cover pods,
+# nodes, disks and PVCs; these add Pi-specific failure modes.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: homelab
+  namespace: monitoring
+spec:
+  groups:
+    - name: homelab.rules
+      rules:
+        - alert: PiHighTemperature
+          # The Pi SoC sensor shows up as thermal_zone (type cpu-thermal) and/or hwmon (cpu_thermal).
+          expr: max(max(node_thermal_zone_temp) or max(node_hwmon_temp_celsius)) > 75
+          for: 10m
+          labels: { severity: warning }
+          annotations:
+            summary: "Pi SoC is {{ $value }}°C, so it will start throttling at 80-85°C. Check the fan."
+        - alert: CloudflareTunnelDown
+          expr: sum(cloudflared_tunnel_ha_connections) < 1 or absent(cloudflared_tunnel_ha_connections)
+          for: 5m
+          labels: { severity: critical }
+          annotations:
+            summary: "cloudflared has no connections to the Cloudflare edge, so public sites are down."
+        - alert: NodeMemoryPressure
+          expr: (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) < 0.10
+          for: 10m
+          labels: { severity: warning }
+          annotations:
+            summary: "Less than 10% RAM available on {{ $labels.instance }}. Expect OOM kills."

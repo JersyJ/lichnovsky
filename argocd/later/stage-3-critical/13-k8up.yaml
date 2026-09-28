@@ -1,0 +1,35 @@
+# k8up: scheduled restic backups of PVCs (Vaultwarden, Papra, Immich library, Uptime Kuma...)
+# to the restic rest-server on the backup disk. Schedules and the server live in apps/backups.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: k8up
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-7"
+spec:
+  project: default
+  source:
+    repoURL: https://k8up-io.github.io/k8up
+    chart: k8up
+    targetRevision: 4.10.0
+    helm:
+      valuesObject:
+        k8up:
+          timezone: Europe/Prague   # CHANGEME if needed
+          # Opt-in: back up only PVCs annotated k8up.io/backup: "true". Prometheus/Loki data, the
+          # ML model cache, Jellyfin and the media library are skipped on purpose.
+          skipWithoutAnnotation: true
+        resources:
+          requests: { cpu: 10m, memory: 32Mi }
+          limits: { memory: 256Mi }
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: k8up
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

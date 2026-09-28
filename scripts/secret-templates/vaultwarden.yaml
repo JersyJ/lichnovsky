@@ -1,0 +1,10 @@
+# ADMIN_TOKEN must be an argon2 PHC string, not plaintext. Generate it with:
+#   docker run --rm -it vaultwarden/server:1.37.3 /vaultwarden hash
+# and keep the plaintext admin password in your password manager.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: vaultwarden
+  namespace: security
+stringData:
+  ADMIN_TOKEN: '__ASK__'

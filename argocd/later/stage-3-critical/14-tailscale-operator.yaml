@@ -1,0 +1,30 @@
+# Tailscale Kubernetes Operator. The OAuth client lives in the SealedSecret `operator-oauth`
+# (apps/platform, wave -8). The Connector in apps/tailscale turns the cluster into a subnet router
+# for the Pi's LAN IP, so your phone/laptop reach https://*.lichnovsky.eu from anywhere.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: tailscale-operator
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-7"
+spec:
+  project: default
+  source:
+    repoURL: https://pkgs.tailscale.com/helmcharts
+    chart: tailscale-operator
+    targetRevision: 1.102.4
+    helm:
+      valuesObject:
+        operatorConfig:
+          hostname: lichnovsky-k8s-operator
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: tailscale
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

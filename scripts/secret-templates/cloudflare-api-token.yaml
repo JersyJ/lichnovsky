@@ -1,0 +1,8 @@
+# Cloudflare dashboard -> My Profile -> API Tokens -> "Edit zone DNS" template, zone lichnovsky.eu only.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cloudflare-api-token
+  namespace: cert-manager
+stringData:
+  api-token: "__ASK__"

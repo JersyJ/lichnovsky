@@ -1,0 +1,11 @@
+# Rendered once per backed-up namespace. RESTIC_PASSWORD is shared across them: store it offline!
+# REST_USER/REST_PASSWORD log in to the rest-server; each namespace gets its own random password.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: k8up-repo
+  namespace: __NAMESPACE__
+stringData:
+  RESTIC_PASSWORD: "__RESTIC_PASSWORD__"
+  REST_USER: "__NAMESPACE__"
+  REST_PASSWORD: "__REST_PASSWORD__"
