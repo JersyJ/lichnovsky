@@ -1,4 +1,8 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.11"
+# dependencies = ["pyyaml>=6"]
+# ///
 """Offline check of the whole repo before you push.
 
 1. Every Helm-based Argo CD Application in argocd/ (including the not-yet-enabled stages in
@@ -11,7 +15,7 @@
    provided by an enabled chart or by k3s itself. Otherwise the sync fails until a later stage
    is turned on.
 
-Needs: python3 + PyYAML, helm and kubeconform on PATH.
+Needs: uv (fetches Python + PyYAML itself, from the block above), helm and kubeconform on PATH.
 Usage: scripts/validate.py [--k8s-version 1.36.0]
 """
 import argparse
@@ -23,6 +27,10 @@ import tempfile
 import yaml
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
+
+# PyYAML reads a bare `=` (e.g. `- =` in the Prometheus Operator CRDs' enums) as the obscure
+# YAML "value" tag and can't construct it. Kubernetes treats it as the string "=", so do the same.
+yaml.SafeLoader.add_constructor("tag:yaml.org,2002:value", lambda loader, node: loader.construct_scalar(node))
 SCHEMAS = [
     "default",
     "https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json",

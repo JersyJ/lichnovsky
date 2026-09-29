@@ -46,9 +46,8 @@ repos:
       # Needs helm and kubeconform on PATH.
       - id: validate-manifests
         name: helm render + kubeconform (scripts/validate.py)
-        entry: scripts/validate.py
-        language: python
-        additional_dependencies: [pyyaml]
+        entry: uv run --script scripts/validate.py
+        language: system
         pass_filenames: false
         always_run: true
         stages: [pre-push]
