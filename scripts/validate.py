@@ -8,11 +8,12 @@
 1. Render every Helm-based Application in argocd/ (including argocd/later/) with its pinned chart
    version and values.
 2. Run kubeconform over the rendered output and all plain manifests (CRDs via the Datree catalog).
+   Folders with a kustomization.yaml are rendered with `kubectl kustomize` first, as Argo CD does.
 3. Stage check: every custom resource in an enabled app (argocd/*.yaml) needs its CRD from an
    enabled chart or from k3s, otherwise the sync fails.
 
 Charts and schemas are cached in ~/.cache/lichnovsky, so repeat runs are fast.
-Needs helm and kubeconform. Run it with `prek run validate-manifests --hook-stage pre-push`.
+Needs helm, kubectl and kubeconform. Run it with `prek run validate-manifests --hook-stage pre-push`.
 """
 import argparse
 import os
@@ -78,7 +79,17 @@ def render(job, workdir):
     return out
 
 
-def stage_check(rendered_enabled):
+def kustomize(workdir):
+    """{folder: rendered file} for every Kustomize folder."""
+    out = {}
+    for k in sorted(ROOT.glob("*/**/kustomization.yaml")):
+        dest = workdir / f"kustomize-{k.parent.relative_to(ROOT).as_posix().replace('/', '-')}.yaml"
+        dest.write_text(run(["kubectl", "kustomize", str(k.parent)]))
+        out[k.parent] = dest
+    return out
+
+
+def stage_check(rendered_enabled, kustomized):
     provided = {(d["spec"]["group"], d["spec"]["names"]["kind"])
                 for f in rendered_enabled for d in docs(f) if d.get("kind") == "CustomResourceDefinition"}
     problems = []
@@ -87,12 +98,15 @@ def stage_check(rendered_enabled):
         if not src.get("path"):
             continue
         base = ROOT / src["path"]
-        files = base.rglob("*.yaml") if src.get("directory", {}).get("recurse") else base.glob("*.yaml")
+        if base in kustomized:
+            files = [kustomized[base]]
+        else:
+            files = base.rglob("*.yaml") if src.get("directory", {}).get("recurse") else base.glob("*.yaml")
         for m in sorted(files):
             for d in docs(m):
                 group = d.get("apiVersion", "").rpartition("/")[0]
                 if group not in BUILTIN_GROUPS and (group, d.get("kind")) not in provided:
-                    problems.append(f"{m.relative_to(ROOT)}: {d.get('kind')} ({group}) needs a CRD "
+                    problems.append(f"{src['path']}: {d.get('kind')} ({group}) needs a CRD "
                                     f"that no enabled app installs")
     return problems
 
@@ -126,8 +140,10 @@ def main():
             if f.parent == ROOT / "argocd":
                 rendered_enabled.append(out)
 
+        kustomized = kustomize(workdir)
         plain = [str(p) for d in ("apps", "platform", "argocd", "bootstrap") for p in (ROOT / d).rglob("*.yaml")
-                 if p.name != "argocd-values.yaml"]
+                 if p.name != "argocd-values.yaml" and not any(k in p.parents for k in kustomized)]
+        plain += [str(r) for r in kustomized.values()]
         schema_cache = CACHE / "kubeconform"
         schema_cache.mkdir(parents=True, exist_ok=True)
         cmd = ["kubeconform", "-strict", "-summary", "-output", "text", "-n", str(os.cpu_count() or 4),
@@ -140,7 +156,7 @@ def main():
             failed = True
             print(res.stderr.strip())
 
-        problems = stage_check(rendered_enabled)
+        problems = stage_check(rendered_enabled, kustomized)
         for p in problems:
             print(f"stage FAIL {p}")
         failed |= bool(problems)
