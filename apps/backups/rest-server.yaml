@@ -10,7 +10,7 @@
 #  - --private-repos + htpasswd: the user `<namespace>` can only reach /<namespace>/ (so a
 #    compromised app can't touch another app's backups);
 #  - the NetworkPolicy below only admits the backed-up namespaces.
-# The htpasswd file is the SealedSecret `rest-server-htpasswd` (scripts/secrets.sh generates it).
+# The htpasswd file is the SealedSecret `rest-server-htpasswd` (`scripts/seal.sh backups` generates it).
 apiVersion: v1
 kind: PersistentVolume
 metadata:

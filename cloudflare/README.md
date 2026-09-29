@@ -1,4 +1,4 @@
-# infra/cloudflare: Cloudflare as code (OpenTofu)
+# cloudflare/: Cloudflare as code (OpenTofu)
 
 Manages everything on the Cloudflare side of lichnovsky.eu:
 
@@ -8,7 +8,7 @@ Manages everything on the Cloudflare side of lichnovsky.eu:
 | `access.tf` | Cloudflare Access (e-mail one-time PIN) for Argo CD, Grafana, Papra, Uptime Kuma, Vaultwarden `/admin` |
 | `rules.tf` | Login rate limit (Free plan: 1 rule), cache rule for the website |
 | `zone.tf` | TLS settings: Full (strict), Always Use HTTPS, TLS ≥ 1.2 |
-| `outputs.tf` | `tunnel_token`, which `scripts/secrets.sh init` reads to fill the cloudflared SealedSecret |
+| `outputs.tf` | `tunnel_token`, which `scripts/seal.sh cloudflared-token` seals for cloudflared |
 
 State: Cloudflare R2 bucket `lichnovsky-tofu-state`, **encrypted by OpenTofu before upload**
 (AES-GCM, key derived from your passphrase). Locking uses R2 conditional writes (`use_lockfile`).
@@ -51,7 +51,7 @@ export AWS_ACCESS_KEY_ID=...             # R2 token (2.)
 export AWS_SECRET_ACCESS_KEY=...
 export TF_VAR_state_passphrase=...       # >= 16 chars, from your password manager
 
-cd infra/cloudflare
+cd cloudflare
 tofu init
 tofu plan
 tofu apply

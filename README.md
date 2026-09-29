@@ -9,7 +9,7 @@ Tailscale. Nightly encrypted backups go to the Pi's SD card; alerts go to Discor
 | Website | https://lichnovsky.eu (`www.` redirects) | Internet, LAN, Tailscale |
 | Vaultwarden | https://vault.lichnovsky.eu | Internet, LAN, Tailscale |
 | Immich | https://photos.lichnovsky.eu | Internet, LAN, Tailscale |
-| Papra | https://docs.lichnovsky.eu | Internet (Access), LAN, Tailscale |
+| Papra | https://papra.lichnovsky.eu | Internet (Access), LAN, Tailscale |
 | Uptime Kuma | https://status.lichnovsky.eu | Internet (Access), LAN, Tailscale |
 | Argo CD | https://argocd.lichnovsky.eu | Internet (Access), LAN, Tailscale |
 | Grafana | https://grafana.lichnovsky.eu | Internet (Access), LAN, Tailscale |
@@ -41,6 +41,7 @@ docs/        guide + review of the original draft
 
 ## Rules of the repo
 
-- **Never commit a plaintext Secret.** `.secrets/` is git-ignored. Use `scripts/secrets.sh`.
+- **Never commit a plaintext Secret.** Create each one with `scripts/seal.sh <name>`: it writes only the
+  SealedSecret, never plaintext. A hook blocks any `kind: Secret`.
 - **Pin every version.** Renovate proposes updates as PRs.
 - **Git is the source of truth.** Anything changed with `kubectl edit` is reverted by self-heal.

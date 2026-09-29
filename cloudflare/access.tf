@@ -11,7 +11,7 @@ locals {
   protected_apps = {
     "Argo CD"     = "argocd.${var.domain}"
     "Grafana"     = "grafana.${var.domain}"
-    "Papra"       = "docs.${var.domain}"
+    "Papra"       = "papra.${var.domain}"
     "Uptime Kuma" = "status.${var.domain}"
     # Only the admin page: protecting all of vault. would break the Bitwarden apps.
     "Vaultwarden admin" = "vault.${var.domain}/admin"

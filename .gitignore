@@ -1,6 +1,5 @@
-# Plaintext secrets live here before they are sealed. NEVER commit this folder.
-.secrets/*
-!.secrets/README.md
+# Old plaintext secret drafts (no longer used; scripts/seal.sh writes nothing to disk).
+.secrets/
 
 # Sealed Secrets controller key backups
 *.key
@@ -16,6 +15,6 @@ sealed-secrets-key*.yaml
 *.tfstate
 *.tfstate.*
 *.tfplan
-infra/**/plan
-infra/**/plan.txt
+cloudflare/plan
+cloudflare/plan.txt
 crash.log

@@ -12,7 +12,7 @@
 # disk), Prometheus/Loki data, the Immich ML model cache, Jellyfin config and media.
 #
 # Secret `k8up-repo` in each namespace holds RESTIC_PASSWORD plus the rest-server login
-# REST_USER (= namespace) / REST_PASSWORD (scripts/secrets.sh generates all of them).
+# REST_USER (= namespace) / REST_PASSWORD (`scripts/seal.sh backups` generates all of them).
 #
 # The restic pods run as root (podSecurityContext below): the k8up image's default UID 65532 can't
 # read files the apps create with mode 0600 (e.g. AdGuard's config), and would silently skip them.

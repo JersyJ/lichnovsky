@@ -1,8 +1,0 @@
-# Filled automatically from `tofu output tunnel_token` (infra/cloudflare) when available.
-apiVersion: v1
-kind: Secret
-metadata:
-  name: cloudflared-token
-  namespace: networking
-stringData:
-  token: "__ASK__"

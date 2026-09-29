@@ -1,7 +1,0 @@
-apiVersion: v1
-kind: Secret
-metadata:
-  name: papra
-  namespace: documents
-stringData:
-  AUTH_SECRET: "__RANDOM_HEX_48__"

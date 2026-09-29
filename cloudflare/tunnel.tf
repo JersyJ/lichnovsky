@@ -18,7 +18,7 @@ locals {
     "www.${var.domain}",
     "vault.${var.domain}",
     "photos.${var.domain}",
-    "docs.${var.domain}",
+    "papra.${var.domain}",
     "status.${var.domain}",
     "argocd.${var.domain}",
     "grafana.${var.domain}",

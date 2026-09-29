@@ -30,16 +30,16 @@ repos:
   - repo: local
     hooks:
       - id: no-plaintext-secrets
-        name: no plaintext Kubernetes Secrets
-        entry: scripts/check-no-plaintext-secrets.sh
-        language: script
-        files: \.(ya?ml)$|^\.secrets/
+        name: no plaintext Kubernetes Secrets (seal them with scripts/seal.sh)
+        language: pygrep
+        entry: '^kind:\s*Secret\s*$'
+        files: \.ya?ml$
 
       - id: tofu-fmt
-        name: tofu fmt (infra/)
-        entry: tofu fmt -check -recursive infra
+        name: tofu fmt (cloudflare/)
+        entry: tofu fmt -check -recursive cloudflare
         language: system
-        files: ^infra/.*\.(tf|tfvars|hcl)$
+        files: ^cloudflare/.*\.(tf|tfvars|hcl)$
         pass_filenames: false
 
       # Slow (downloads charts and schemas), so it runs on push, not on every commit.

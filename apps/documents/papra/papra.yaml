@@ -56,7 +56,7 @@ spec:
         - name: papra
           image: ghcr.io/papra-hq/papra:26.6.2-rootless
           env:
-            - { name: APP_BASE_URL, value: "https://docs.lichnovsky.eu" }
+            - { name: APP_BASE_URL, value: "https://papra.lichnovsky.eu" }
             - { name: TZ, value: "Europe/Prague" }
             - name: AUTH_SECRET
               valueFrom:
@@ -108,7 +108,7 @@ metadata:
 spec:
   ingressClassName: traefik
   rules:
-    - host: docs.lichnovsky.eu
+    - host: papra.lichnovsky.eu
       http:
         paths:
           - path: /

@@ -143,7 +143,7 @@ What this means:
 | `www.lichnovsky.eu` | 301 → `lichnovsky.eu` | yes | no | yes |
 | `vault.lichnovsky.eu` | Vaultwarden | yes | only on `/admin` | yes |
 | `photos.lichnovsky.eu` | Immich | yes | no (breaks mobile app + share links) | yes |
-| `docs.lichnovsky.eu` | Papra | yes | yes (email OTP / GitHub) | yes |
+| `papra.lichnovsky.eu` | Papra | yes | yes (email OTP / GitHub) | yes |
 | `status.lichnovsky.eu` | Uptime Kuma | yes | yes, with bypass for `/status/*` if you want a public status page | yes |
 | `argocd.lichnovsky.eu` | Argo CD | yes | **yes, required** | yes |
 | `grafana.lichnovsky.eu` | Grafana | yes | **yes, required** | yes |
@@ -175,13 +175,11 @@ lichnovsky/                    # github.com/JersyJ/lichnovsky
 │   ├── monitoring/            # uptime-kuma, monitors (ServiceMonitors, alert rules)
 │   ├── web/website/           # lichnovsky.eu (placeholder until the real site exists)
 │   └── backups/               # restic rest-server on the SD card + k8up Schedules
-├── infra/cloudflare/          # OpenTofu: tunnel, DNS, Access, rules, zone settings (state in R2)
+├── cloudflare/                # OpenTofu: tunnel, DNS, Access, rules, zone settings (state in R2)
 ├── host/                      # files that go on the Pi itself (k3s config, journald cap)
 ├── scripts/
-│   ├── secrets.sh             # init/seal workflow for Sealed Secrets
-│   ├── secret-templates/      # every Secret the cluster needs, with placeholders
+│   ├── seal.sh                # create one SealedSecret; plaintext never touches the disk
 │   ├── validate.py            # helm-render every chart + kubeconform + stage check, offline
-│   └── check-no-plaintext-secrets.sh   # git hook: blocks committing a plaintext Secret
 ├── .pre-commit-config.yaml    # git hooks, run with prek
 ├── renovate.json
 └── docs/guide.md              # this file
@@ -230,7 +228,7 @@ ServiceMonitor lives with the stage-2 monitors), and `scripts/validate.py` enfor
   ```
   - On every commit: whitespace/EOF fixes, YAML/JSON syntax, merge markers, large files, private
     keys, yamllint, gitleaks, and a **plaintext-Secret guard**. The guard rejects any
-    `kind: Secret` outside `scripts/secret-templates/` and anything in `.secrets/`.
+    `kind: Secret` in a YAML file (a `pygrep` rule, no script).
   - On every push: `scripts/validate.py` (slow: it downloads charts and schemas).
 
 ---
@@ -241,7 +239,7 @@ ServiceMonitor lives with the stage-2 monitors), and `scripts/validate.py` enfor
    - SSL/TLS → Edge Certificates: turn on *Always Use HTTPS*, and *HSTS* once everything works.
 2. **Cloudflare API token for cert-manager** (manual on purpose): My Profile → API Tokens →
    template *Edit zone DNS*, zone `lichnovsky.eu` only. The OpenTofu bootstrap (R2 bucket,
-   OpenTofu token, Zero Trust team) is in `infra/cloudflare/README.md`; see Phase 4.
+   OpenTofu token, Zero Trust team) is in `cloudflare/README.md`; see Phase 4.
 3. **Tailscale account.** In the tailnet policy, add `tagOwners` for `tag:k8s-operator` and `tag:k8s`.
    Then create the operator's OAuth client
    ([KB 1236](https://tailscale.com/kb/1236/kubernetes-operator) lists the current scopes).
@@ -380,10 +378,11 @@ cert-manager. Wave -8 (`platform`) waits until its secrets exist. **That's expec
 before you can seal anything:
 
 ```bash
-# 4. Create and seal every secret for all stages at once (prompts for tokens, generates the rest)
+# 4. Seal the stage-1 secrets (prompts only for tokens you paste; generates the rest)
 kubectl -n kube-system rollout status deploy/sealed-secrets-controller
-scripts/secrets.sh init      # writes plaintext to .secrets/ (git-ignored)
-scripts/secrets.sh seal      # writes apps/**/sealed-*.yaml
+source ~/.config/lichnovsky/cloudflare.env   # for the tunnel token from `tofu output`
+for s in cloudflare-api-token cloudflared-token grafana-admin papra backups; do scripts/seal.sh $s; done
+# later stages, once you have the values: alertmanager-notify, tailscale-operator-oauth, vaultwarden
 git add apps && git commit -m "feat: sealed secrets" && git push
 
 # 5. Back up the Sealed Secrets private key OFF the cluster (password manager / offline).
@@ -392,11 +391,11 @@ kubectl -n kube-system get secret -l sealedsecrets.bitnami.com/sealed-secrets-ke
   > sealed-secrets-key.backup.yaml     # git-ignored; store it safely, then delete it locally
 ```
 
-`init` asks for: the Cloudflare API token, the tunnel token (skipped when `tofu output` already
-provides it, see Phase 4), the Discord webhook and healthchecks.io
-URLs, the Tailscale OAuth client, and the Vaultwarden `ADMIN_TOKEN`. That last one is an **argon2
-hash**, not a password: `docker run --rm -it vaultwarden/server:1.37.3 /vaultwarden hash`.
-Everything else (Papra secret, Grafana password, restic password, rest-server logins) is generated.
+`scripts/seal.sh <name>` asks only for values you have to paste: the cert-manager DNS token, the
+Discord and healthchecks.io URLs, the Tailscale OAuth client, and the Vaultwarden `ADMIN_TOKEN`. That
+last one is an **argon2 hash**, not a password: `docker run --rm -it vaultwarden/server:1.37.3 /vaultwarden hash`.
+Everything else is generated. The Grafana password and the **restic password** are printed once, so
+save them in your password manager right away. Run `scripts/seal.sh` without arguments for the list.
 
 When stage 1 is healthy, continue stage by stage (§4, *Staged rollout*).
 
@@ -410,18 +409,18 @@ Change it, then delete that secret.
 
 ## 9. Phase 4: Cloudflare Tunnel and Access (as code)
 
-Everything on the Cloudflare side is OpenTofu in **`infra/cloudflare/`**, with its state encrypted
+Everything on the Cloudflare side is OpenTofu in **`cloudflare/`**, with its state encrypted
 in an R2 bucket. That covers the tunnel, its public hostnames, the DNS records, Access, the rate
 limit, the cache rule and the TLS settings. The one-time bootstrap (R2 bucket, two tokens, Zero Trust
-team) and the commands are in [`infra/cloudflare/README.md`](../infra/cloudflare/README.md).
-**Do this before Phase 3 step 4**, because `scripts/secrets.sh init` reads the tunnel token from
+team) and the commands are in [`cloudflare/README.md`](../cloudflare/README.md).
+**Do this before Phase 3 step 4**, because `scripts/seal.sh cloudflared-token` reads the tunnel token from
 `tofu output`.
 
 What it sets up, and why:
-- **Public hostnames** `lichnovsky.eu`, `www`, `vault`, `photos`, `docs`, `status`, `argocd`,
+- **Public hostnames** `lichnovsky.eu`, `www`, `vault`, `photos`, `papra`, `status`, `argocd`,
   `grafana` → `http://traefik.kube-system.svc.cluster.local:80`, each with a proxied CNAME to the
   tunnel. **No wildcard**, so `tv` (Jellyfin) and `dns` (AdGuard) never get a public record.
-- **Access** (e-mail one-time PIN) on `argocd.`, `grafana.`, `docs.`, `status.`, and on
+- **Access** (e-mail one-time PIN) on `argocd.`, `grafana.`, `papra.`, `status.`, and on
   `vault.lichnovsky.eu/admin` only. Protecting all of `vault.` would break the Bitwarden apps.
   Nothing on `photos.`: the Immich apps and share links need direct access, so they rely on
   Immich's own login plus the rate limit.
@@ -479,7 +478,7 @@ sign up via the invite. `SIGNUPS_ALLOWED=false` blocks everyone else. Turn on 2F
 Snapshots: a CronJob runs `vaultwarden backup` (SQLite `VACUUM INTO`) at 02:30, keeping 7, and
 k8up copies them to the backup disk at 03:30.
 
-**Papra.** `https://docs.lichnovsky.eu`: create the first account (the first user is the owner).
+**Papra.** `https://papra.lichnovsky.eu`: create the first account (the first user is the owner).
 Data (SQLite + files) lives under `/app/app-data` on the PVC.
 
 **Immich.** `https://photos.lichnovsky.eu`: the first user becomes admin.
@@ -591,7 +590,7 @@ k3s etcd snapshots (every 12 h) ────────────┴───
 |---|---|---|---|
 | Git: manifests, config, sealed secrets | GitHub | GitHub (+ your laptop clone) | every push |
 | Sealed Secrets **private key** | manual export (Phase 3 step 5) | password manager + offline | once, and after key rotation (every 30 days by default; old keys are kept) |
-| Secret values + **restic password** | `.secrets/` → password manager | password manager | when created |
+| Secret values + **restic password** | printed once by `scripts/seal.sh` → password manager | password manager | when created |
 | Vaultwarden | SQLite `VACUUM INTO` snapshot → restic | SD card | daily; 7 d / 4 w / 6 m |
 | Immich database | `pg_dump -Fc` → restic | SD card | daily; 7 d / 4 w / 6 m |
 | Papra, Uptime Kuma, AdGuard | restic (k8up) | SD card | daily; 7 d / 4 w / 6 m; weekly `restic check` |
@@ -637,7 +636,7 @@ friend's rest-server.
   to the LAN/Tailscale:
   ```bash
   kubectl -n backups port-forward svc/rest-server 8000:8000 &
-  # REST_PASSWORD for the namespace is in .secrets/k8up-repo-documents.yaml (or your password manager)
+  # REST_PASSWORD for the namespace: kubectl -n documents get secret k8up-repo -o jsonpath='{.data.REST_PASSWORD}' | base64 -d
   export RESTIC_REPOSITORY=rest:http://documents:<REST_PASSWORD>@localhost:8000/documents/
   export RESTIC_PASSWORD=<restic password>
   restic snapshots
