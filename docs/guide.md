@@ -336,6 +336,12 @@ kubectl get nodes -o wide     # rpi-01 Ready
 From your laptop: copy the same file and replace `127.0.0.1` with `192.168.50.244`.
 The API cert already covers it via `tls-san`.
 
+Then cap k3s's Go heap (`host/k3s-memory.conf`, a systemd drop-in, so reinstalls don't touch it):
+```bash
+sudo install -D -m 0644 host/k3s-memory.conf /etc/systemd/system/k3s.service.d/memory.conf
+sudo systemctl daemon-reload && sudo systemctl restart k3s   # pods keep running during the restart
+```
+
 What the config does, and why:
 
 | Setting | Reason |

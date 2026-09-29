@@ -13,6 +13,79 @@ configs:
     exec.enabled: false
     statusbadge.enabled: false
     timeout.reconciliation: 180s
+    # Resource types Argo CD doesn't watch or cache. Setting this REPLACES the chart's default list,
+    # so the defaults (argo-cd chart 10.9.2) are copied below, with our additions at the end.
+    # Re-check the defaults when upgrading the chart major version.
+    resource.exclusions: |
+      ### Network resources created by the Kubernetes control plane and excluded to reduce the number of watched events and UI clutter
+      - apiGroups:
+        - ''
+        - discovery.k8s.io
+        kinds:
+        - Endpoints
+        - EndpointSlice
+      ### Internal Kubernetes resources excluded reduce the number of watched events
+      - apiGroups:
+        - coordination.k8s.io
+        kinds:
+        - Lease
+      ### Internal Kubernetes Authz/Authn resources excluded reduce the number of watched events
+      - apiGroups:
+        - authentication.k8s.io
+        - authorization.k8s.io
+        kinds:
+        - SelfSubjectReview
+        - TokenReview
+        - LocalSubjectAccessReview
+        - SelfSubjectAccessReview
+        - SelfSubjectRulesReview
+        - SubjectAccessReview
+      ### Intermediate Certificate Request excluded reduce the number of watched events
+      - apiGroups:
+        - certificates.k8s.io
+        kinds:
+        - CertificateSigningRequest
+      - apiGroups:
+        - cert-manager.io
+        kinds:
+        - CertificateRequest
+      ### Cilium internal resources excluded reduce the number of watched events and UI Clutter
+      - apiGroups:
+        - cilium.io
+        kinds:
+        - CiliumIdentity
+        - CiliumEndpoint
+        - CiliumEndpointSlice
+      ### Kyverno intermediate and reporting resources excluded reduce the number of watched events and improve performance
+      - apiGroups:
+        - kyverno.io
+        - reports.kyverno.io
+        - wgpolicyk8s.io
+        kinds:
+        - PolicyReport
+        - ClusterPolicyReport
+        - EphemeralReport
+        - ClusterEphemeralReport
+        - AdmissionReport
+        - ClusterAdmissionReport
+        - BackgroundScanReport
+        - ClusterBackgroundScanReport
+        - UpdateRequest
+      ### lichnovsky.eu additions: high-churn or tool-internal resources Argo CD never manages here
+      - apiGroups:
+        - ''
+        - events.k8s.io
+        kinds:
+        - Event
+      - apiGroups:
+        - acme.cert-manager.io
+        kinds:
+        - Order
+        - Challenge
+      - apiGroups:
+        - k3s.cattle.io
+        kinds:
+        - Addon
     # Health check for Application resources. Without it, sync-waves in the app-of-apps don't
     # wait: Argo CD doesn't health-check child Applications by default.
     resource.customizations.health.argoproj.io_Application: |
@@ -31,6 +104,11 @@ configs:
 
 # Tuned down for a single 8 GB Raspberry Pi.
 controller:
+  # Go soft memory cap just under the container limit: the GC works harder instead of growing
+  # the heap until the kernel OOM-kills the pod.
+  env:
+    - name: GOMEMLIMIT
+      value: "650MiB"
   resources:
     requests: { cpu: 100m, memory: 256Mi }
     limits: { memory: 768Mi }
