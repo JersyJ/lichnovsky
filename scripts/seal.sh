@@ -36,8 +36,10 @@ case ${1:-} in
     echo "Grafana login: admin / $pw   (save it)" ;;
 
   alertmanager-notify)   # Discord: channel -> Edit Channel -> Integrations -> Webhooks -> copy URL
-    seal apps/platform/secrets/sealed-alertmanager-notify.yaml monitoring alertmanager-notify \
-      "discord-webhook-url=$(ask 'Discord webhook URL')" ;;
+    url=$(ask 'Discord webhook URL')
+    [[ $url == https://discord.com/api/webhooks/* ]] ||
+      { echo "that doesn't look like a Discord webhook URL (it must start with https://discord.com/api/webhooks/)" >&2; exit 1; }
+    seal apps/platform/secrets/sealed-alertmanager-notify.yaml monitoring alertmanager-notify "discord-webhook-url=$url" ;;
 
   tailscale-operator-oauth)  # Tailscale OAuth client, see https://tailscale.com/kb/1236/kubernetes-operator
     seal apps/platform/secrets/sealed-tailscale-operator-oauth.yaml tailscale operator-oauth \

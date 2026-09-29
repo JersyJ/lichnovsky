@@ -221,7 +221,7 @@ ServiceMonitor lives with the stage-2 monitors), and `scripts/validate.py` enfor
 - **`scripts/validate.py`** renders every chart (all stages) with its pinned version and values,
   validates the ~400 resources, CRDs included, with kubeconform, and runs the **stage check**:
   any custom resource in an *enabled* app must have its CRD installed by an enabled chart or by k3s.
-  It needs `helm` and `kubeconform` on `PATH`.
+  It needs `uv`, `helm` and `kubeconform` on `PATH`.
 - **Git hooks with [prek](https://github.com/j178/prek)** (`.pre-commit-config.yaml`):
   ```bash
   prek install               # installs pre-commit and pre-push hooks
@@ -253,7 +253,8 @@ ServiceMonitor lives with the stage-2 monitors), and `scripts/validate.py` enfor
    `#homelab-alerts`) → Edit Channel → Integrations → Webhooks → *New Webhook* → copy the URL.
 6. **Workstation tools:** `kubectl`, `kubeseal` (v0.40.x, to match the controller), `openssl`, [prek](https://github.com/j178/prek),
    and OpenTofu via [tenv](https://github.com/tofuutils/tenv) (`tenv tofu install` reads
-   `.opentofu-version`), `helm`, `kubeconform`. Optional: `argocd` CLI, `k9s`.
+   `.opentofu-version`), `helm`, `kubeconform`, [uv](https://docs.astral.sh/uv/) (runs `scripts/validate.py`
+   with its own dependencies). Optional: `argocd` CLI, `k9s`.
 
 ---
 
