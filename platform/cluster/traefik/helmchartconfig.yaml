@@ -13,6 +13,9 @@ spec:
       web:
         forwardedHeaders:
           trustedIPs: ["10.42.0.0/16"]
+        # Redirect plain HTTP to HTTPS (see redirect-https.yaml; tunnel traffic passes through).
+        http:
+          middlewares: ["kube-system-redirect-https@kubernetescrd"]
       websecure:
         forwardedHeaders:
           trustedIPs: ["10.42.0.0/16"]
