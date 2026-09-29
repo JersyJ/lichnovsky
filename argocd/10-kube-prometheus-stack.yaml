@@ -60,7 +60,7 @@ spec:
             resources:
               requests: { cpu: 10m, memory: 32Mi }
               limits: { memory: 96Mi }
-            # SealedSecret `alertmanager-notify` (apps/platform/secrets), mounted at
+            # SealedSecret `alertmanager-notify` (platform/cluster/secrets), mounted at
             # /etc/alertmanager/secrets/alertmanager-notify/. Key: discord-webhook-url
             secrets: [alertmanager-notify]
           # Alerts go to Discord. The URL is read from a file (webhook_url_file), so it never sits in Git.
@@ -115,7 +115,7 @@ spec:
 
         grafana:
           admin:
-            existingSecret: grafana-admin      # SealedSecret in apps/platform (wave -8)
+            existingSecret: grafana-admin      # SealedSecret in platform/cluster (wave -8)
             userKey: admin-user
             passwordKey: admin-password
           persistence:

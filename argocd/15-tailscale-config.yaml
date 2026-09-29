@@ -12,7 +12,7 @@ spec:
   source:
     repoURL: git@github.com:JersyJ/lichnovsky.git
     targetRevision: main
-    path: apps/tailscale
+    path: platform/tailscale
   destination:
     server: https://kubernetes.default.svc
     namespace: tailscale

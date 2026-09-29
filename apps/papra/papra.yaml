@@ -6,7 +6,7 @@ metadata:
   name: papra-data
   annotations:
     k8up.io/backup: "true"
-  namespace: documents
+  namespace: papra
 spec:
   accessModes: ["ReadWriteOnce"]
   storageClassName: local-path
@@ -18,7 +18,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: papra
-  namespace: documents
+  namespace: papra
   labels:
     app: papra
 spec:
@@ -91,7 +91,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: papra
-  namespace: documents
+  namespace: papra
 spec:
   selector:
     app: papra
@@ -104,7 +104,7 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: papra
-  namespace: documents
+  namespace: papra
 spec:
   ingressClassName: traefik
   rules:

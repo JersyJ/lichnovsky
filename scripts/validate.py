@@ -9,7 +9,7 @@
    argocd/later/) is rendered with `helm template`, using the
    exact chart version and values it declares. Charts that ship a values.schema.json reject
    unknown keys; for the others, spot-check the rendered output.
-2. The rendered output plus all plain manifests in apps/, argocd/ and bootstrap/ go through
+2. The rendered output plus all plain manifests in apps/, platform/, argocd/ and bootstrap/ go through
    kubeconform. CRDs are checked against the Datree CRDs-catalog schemas.
 3. Stage check: every custom resource used by an *enabled* app (argocd/*.yaml) must have its CRD
    provided by an enabled chart or by k3s itself. Otherwise the sync fails until a later stage
@@ -127,7 +127,7 @@ def main():
                     failed = True
                     print(f"helm FAIL  {f.relative_to(ROOT)}\n{e.stderr}")
 
-        plain = [str(p) for d in ("apps", "argocd", "bootstrap") for p in (ROOT / d).rglob("*.yaml")
+        plain = [str(p) for d in ("apps", "platform", "argocd", "bootstrap") for p in (ROOT / d).rglob("*.yaml")
                  if p.name != "argocd-values.yaml"]
         cmd = ["kubeconform", "-strict", "-summary", "-output", "text",
                "-kubernetes-version", opts.k8s_version, "-ignore-missing-schemas"]

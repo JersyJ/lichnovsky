@@ -12,7 +12,7 @@ spec:
   source:
     repoURL: git@github.com:JersyJ/lichnovsky.git
     targetRevision: main
-    path: apps/monitoring/uptime-kuma
+    path: apps/uptime-kuma
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring

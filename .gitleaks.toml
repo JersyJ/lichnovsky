@@ -1,0 +1,10 @@
+# gitleaks config (read automatically by the gitleaks hook). All default rules stay active.
+[extend]
+useDefault = true
+
+# SealedSecrets hold ciphertext that only the cluster's sealed-secrets key can decrypt, and
+# committing them is the point. Their long random-looking values trip the generic-api-key rule.
+# Exempt only files named sealed-*.yaml; a plaintext `kind: Secret` is blocked by its own hook.
+[[allowlists]]
+description = "SealedSecrets (encrypted values)"
+paths = ['''(^|/)sealed-[^/]+\.ya?ml$''']

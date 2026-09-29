@@ -1,5 +1,5 @@
 # Tailscale Kubernetes Operator. The OAuth client lives in the SealedSecret `operator-oauth`
-# (apps/platform, wave -8). The Connector in apps/tailscale turns the cluster into a subnet router
+# (platform/cluster, wave -8). The Connector in platform/tailscale turns the cluster into a subnet router
 # for the Pi's LAN IP, so your phone/laptop reach https://*.lichnovsky.eu from anywhere.
 apiVersion: argoproj.io/v1alpha1
 kind: Application

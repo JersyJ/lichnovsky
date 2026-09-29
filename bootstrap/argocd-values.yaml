@@ -17,7 +17,7 @@ configs:
     # so the defaults (argo-cd chart 10.9.2) are copied below, with our additions at the end.
     # Re-check the defaults when upgrading the chart major version.
     resource.exclusions: |
-      ### Network resources created by the Kubernetes control plane and excluded to reduce the number of watched events and UI clutter
+      ### Network resources created by the control plane (excluded: fewer watched events, less UI clutter)
       - apiGroups:
         - ''
         - discovery.k8s.io

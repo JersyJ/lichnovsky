@@ -17,7 +17,7 @@ Tailscale. Nightly encrypted backups go to the Pi's SD card; alerts go to Discor
 | AdGuard Home | https://dns.lichnovsky.eu | LAN, Tailscale |
 
 The website itself is built in a separate repository. Until it's ready, a placeholder page runs
-here (`apps/web/website`); see the image contract in the guide, §11.
+here (`apps/website`); see the image contract in the guide, §11.
 
 ## Start here
 
@@ -33,7 +33,9 @@ here (`apps/web/website`); see the image contract in the guide, §11.
 ```
 bootstrap/   Argo CD Helm values + the root "app of apps"
 argocd/      enabled Applications (sync-wave ordered); later/ holds stages 2-5
-apps/        plain manifests per app (plus SealedSecrets once you create them)
+platform/    what keeps the cluster running (namespaces named by function: networking, monitoring, ...)
+apps/        what you use: one folder per app (= its Argo CD app name)
+cloudflare/  OpenTofu for the Cloudflare side (tunnel, DNS, Access, heartbeat Worker)
 host/        files that go on the Pi itself
 scripts/     secrets workflow + offline validation
 docs/        guide + review of the original draft

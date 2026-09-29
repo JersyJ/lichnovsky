@@ -3,7 +3,7 @@
 # Dashboards are imported from grafana.com by the Grafana chart
 # (argocd/later/stage-2-observability/10-kube-prometheus-stack.yaml).
 ---
-# Traefik (k3s-bundled) metrics Service is enabled in apps/platform/traefik/helmchartconfig.yaml.
+# Traefik (k3s-bundled) metrics Service is enabled in platform/cluster/traefik/helmchartconfig.yaml.
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:

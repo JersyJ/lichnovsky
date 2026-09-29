@@ -21,11 +21,11 @@ DNS and media. The problems were in the details.
 | # | Finding | Fixed in |
 |---|---|---|
 | 5 | A `ServiceMonitor` sat in the cloudflared bundle, but its CRD arrives later with kube-prometheus-stack, so the sync fails. | Sync waves + Application health check |
-| 6 | The `networking` namespace was never created. | `apps/platform/namespaces.yaml` |
+| 6 | The `networking` namespace was never created. | `platform/cluster/namespaces.yaml` |
 | 7 | The App-of-Apps `root-app.yaml` was referenced but never written. Argo CD was installed from a floating `stable` URL and wasn't self-managed. | `bootstrap/`, `argocd/00-argocd.yaml` |
 | 8 | `:latest` on every image. | Pinned versions + Renovate |
-| 9 | Vaultwarden `WEBSOCKET_ENABLED` has been obsolete since 1.29. `DOMAIN`, `SIGNUPS_ALLOWED=false` and `ADMIN_TOKEN` were missing. | `apps/security/vaultwarden` |
-| 10 | Papra's volume was mounted at `/data`, but the app stores data in `/app/app-data`, so **data would be lost on restart**. | `apps/documents/papra` |
+| 9 | Vaultwarden `WEBSOCKET_ENABLED` has been obsolete since 1.29. `DOMAIN`, `SIGNUPS_ALLOWED=false` and `ADMIN_TOKEN` were missing. | `apps/vaultwarden` |
+| 10 | Papra's volume was mounted at `/data`, but the app stores data in `/app/app-data`, so **data would be lost on restart**. | `apps/papra` |
 | 11 | `kube-prometheus-stack 61.*` was about 30 majors behind (91.x now). "The trap: retains metrics indefinitely" was wrong: the chart defaults to 10 d / 30 s. | Chart 91.8.1, `retentionSize` added, text corrected |
 | 12 | "Cloudflare ToS Section 2.8" was removed in 2023. The restriction now sits in the CDN Service-Specific Terms. | §9 |
 | 13 | "Configure tunnel health checks to use Request instead of Reply": no such Cloudflare setting exists. | Removed |

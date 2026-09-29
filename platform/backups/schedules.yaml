@@ -3,11 +3,11 @@
 # namespace, so there is one per namespace, each with its own repository.
 #
 # What's included, the "most important things" (~ sizes are for a typical homelab):
-#   security   Vaultwarden data + its nightly SQLite snapshots           (MBs)
-#   documents  Papra database + documents                               (GBs)
-#   photos     Immich database dumps only (albums, people, metadata)     (MBs-GBs)
-#   monitoring Uptime Kuma                                              (MBs)
-#   dns        AdGuard Home config                                      (KBs)
+#   vaultwarden  Vaultwarden data + its nightly SQLite snapshots         (MBs)
+#   papra        Papra database + documents                             (GBs)
+#   photos       Immich database dumps only (albums, people, metadata)  (MBs-GBs)
+#   monitoring   Uptime Kuma                                            (MBs)
+#   dns          AdGuard Home config                                    (KBs)
 # Left out on purpose: the Immich PHOTO LIBRARY (too big for the SD card, so add it with the bigger
 # disk), Prometheus/Loki data, the Immich ML model cache, Jellyfin config and media.
 #
@@ -24,7 +24,7 @@ apiVersion: k8up.io/v1
 kind: Schedule
 metadata:
   name: nightly
-  namespace: security
+  namespace: vaultwarden
 spec:
   podSecurityContext:
     runAsUser: 0
@@ -34,7 +34,7 @@ spec:
       name: k8up-repo
       key: RESTIC_PASSWORD
     rest:
-      url: http://rest-server.backups.svc.cluster.local:8000/security
+      url: http://rest-server.backups.svc.cluster.local:8000/vaultwarden
       userSecretRef:
         name: k8up-repo
         key: REST_USER
@@ -58,7 +58,7 @@ apiVersion: k8up.io/v1
 kind: Schedule
 metadata:
   name: nightly
-  namespace: documents
+  namespace: papra
 spec:
   podSecurityContext:
     runAsUser: 0
@@ -68,7 +68,7 @@ spec:
       name: k8up-repo
       key: RESTIC_PASSWORD
     rest:
-      url: http://rest-server.backups.svc.cluster.local:8000/documents
+      url: http://rest-server.backups.svc.cluster.local:8000/papra
       userSecretRef:
         name: k8up-repo
         key: REST_USER

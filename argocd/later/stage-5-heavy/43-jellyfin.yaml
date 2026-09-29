@@ -12,10 +12,10 @@ spec:
   source:
     repoURL: git@github.com:JersyJ/lichnovsky.git
     targetRevision: main
-    path: apps/media/jellyfin
+    path: apps/jellyfin
   destination:
     server: https://kubernetes.default.svc
-    namespace: media
+    namespace: tv
   syncPolicy:
     automated:
       prune: true

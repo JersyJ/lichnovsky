@@ -1,5 +1,5 @@
 # k8up: scheduled restic backups of PVCs (Vaultwarden, Papra, Immich library, Uptime Kuma...)
-# to the restic rest-server on the backup disk. Schedules and the server live in apps/backups.
+# to the restic rest-server on the backup disk. Schedules and the server live in platform/backups.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

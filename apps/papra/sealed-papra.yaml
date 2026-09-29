@@ -1,0 +1,13 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: papra
+  namespace: papra
+spec:
+  encryptedData:
+    AUTH_SECRET: AgB72/sHcA0LReBrDjU0al4WZlW8ofC32ZZOlLLQpXhjSjtC2yPobCAm4hm/eLZ8q5YGvxApa06DtCYBTk0hTmPUKqatxiGCKRnmVRMvGOGUIk6OI502bisko2jQnvTFH9KV70+1oVAn1lDuNxjMAFBI9zFpjMnp7VcVp39KhrefdYUB+4h4OLlKMsX2YiaWpHER7PQpn5WysiqBQa2SxrSVJp5SpyVPVeOCBCXzfu+npz/SciJrUvch2hs7FNw0JXsPgooy/8eSXz+rTDuQYXiam7KMpGp6i146MDG/UkXgWmxisJcRebMrsmZh2v0IGKQNkF2LbnNdXfENiDtXEk6ek8oabbGjpprr7aS7fcU1fo9RFvP4ancQW9n5y0/MgFAkTHknnVZlEvEQorF9Dt8swUzsNeQ/abT/86SF3N3bULoL+ZwdVMAOqi3APtwNja/ErimjkN8W+jteXdaz5MTj6+h2kIisXxK2lelHDLkH+h8eBVQHt9u4ttlCko/t8fBtLwRC4SVpOXqPawU/FtmH7grrzdNqHFA2pgW4Kh/ViBUJvcALy0NroHuqeDxPw79NolAOVvDXNceKKp/7W/U9aCjXcxl2fZlI7LNOMJUoHUSn9cTW8h8RNv3U1b26MXkWYZJYSGvuxLfGKNjPixT5ZqbwPa/M4J01taef8mSfnAiujLBOs70q3PbVqZtBxpEOa5rKUIglrCw+kEsvlbvSpwynW82SoMjw/P+ixYRCdqX4XqKmOcrVNuE/UGT5XAp+thg1G0xA4vkiJugCZH8kDVhd6E4ydtvF5PJrYiZhDAnf4lX6v0FPONTLrJPznBg=
+  template:
+    metadata:
+      name: papra
+      namespace: papra

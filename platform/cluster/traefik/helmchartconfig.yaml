@@ -16,7 +16,7 @@ spec:
       websecure:
         forwardedHeaders:
           trustedIPs: ["10.42.0.0/16"]
-    # Metrics Service for the ServiceMonitor in apps/monitoring/monitors.
+    # Metrics Service for the ServiceMonitor in platform/monitoring.
     metrics:
       prometheus:
         service:

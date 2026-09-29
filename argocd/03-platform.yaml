@@ -12,7 +12,7 @@ spec:
   source:
     repoURL: git@github.com:JersyJ/lichnovsky.git
     targetRevision: main
-    path: apps/platform
+    path: platform/cluster
     directory:
       recurse: true
   destination:

@@ -164,22 +164,19 @@ lichnovsky/                    # github.com/JersyJ/lichnovsky
 │   └── root.yaml              # the only thing you kubectl-apply: syncs argocd/
 ├── argocd/                    # ENABLED Applications (stage 1); sync-wave sets the order
 │   └── later/stage-2…5/       # not deployed yet: move files up into argocd/ one stage at a time
-├── apps/
-│   ├── platform/              # namespaces (PSA), Traefik config, TLS, ClusterIssuer, infra secrets
+├── platform/                  # keeps the cluster running; namespaces named by FUNCTION
+│   ├── cluster/               # namespaces (PSA), Traefik config, TLS, ClusterIssuer, infra secrets
+│   ├── cloudflared/           # tunnel connector (namespace networking)
+│   ├── monitoring/            # ServiceMonitors + alert rules (namespace monitoring)
 │   ├── tailscale/             # Connector (subnet router)
-│   ├── networking/            # cloudflared, AdGuard
-│   ├── security/vaultwarden/
-│   ├── documents/papra/
-│   ├── photos/immich/         # Immich + CNPG cluster + nightly pg_dump CronJob
-│   ├── media/jellyfin/
-│   ├── monitoring/            # uptime-kuma, monitors (ServiceMonitors, alert rules)
-│   ├── web/website/           # lichnovsky.eu (placeholder until the real site exists)
 │   └── backups/               # restic rest-server on the SD card + k8up Schedules
+├── apps/                      # what you use; one folder per app (= its Argo CD app name)
+│   └── website/  vaultwarden/  adguard/  papra/  uptime-kuma/  immich/  jellyfin/
 ├── cloudflare/                # OpenTofu: tunnel, DNS, Access, rules, zone settings (state in R2)
 ├── host/                      # files that go on the Pi itself (k3s config, journald cap)
 ├── scripts/
 │   ├── seal.sh                # create one SealedSecret; plaintext never touches the disk
-│   ├── validate.py            # helm-render every chart + kubeconform + stage check, offline
+│   └── validate.py            # helm-render every chart + kubeconform + stage check, offline
 ├── .pre-commit-config.yaml    # git hooks, run with prek
 ├── renovate.json
 └── docs/guide.md              # this file
@@ -248,7 +245,7 @@ ServiceMonitor lives with the stage-2 monitors), and `scripts/validate.py` enfor
    - `git@github.com:JersyJ/lichnovsky.git` → your repo URL (in `bootstrap/root.yaml` and `argocd/*.yaml`):
      `grep -rl 'github.com/JersyJ/' . | xargs sed -i 's#github.com/JersyJ/#github.com/<your-user>/#'`
    - `192.168.50.244` → the Pi's reserved IP (`host/k3s-config.yaml`, Tailscale Connector, AdGuard notes)
-   - ACME e-mail in `apps/platform/cert-manager-issuers/letsencrypt.yaml`
+   - ACME e-mail in `platform/cluster/cert-manager-issuers/letsencrypt.yaml`
 5. **Discord alerts channel.** On your Discord server: create a private channel (e.g.
    `#homelab-alerts`) → Edit Channel → Integrations → Webhooks → *New Webhook* → copy the URL.
 6. **Workstation tools:** `kubectl`, `kubeseal` (v0.40.x, to match the controller), `openssl`, [prek](https://github.com/j178/prek),
@@ -437,7 +434,7 @@ What it sets up, and why:
 - **TLS:** Full (strict), Always Use HTTPS, TLS ≥ 1.2. Add HSTS later, once everything works.
 - **Real client IPs:** cloudflared passes `X-Forwarded-For`/`CF-Connecting-IP`. Traefik trusts
   forwarded headers from the pod network (`10.42.0.0/16`, see
-  `apps/platform/traefik/helmchartconfig.yaml`), and Vaultwarden reads `CF-Connecting-IP`.
+  `platform/cluster/traefik/helmchartconfig.yaml`), and Vaultwarden reads `CF-Connecting-IP`.
 
 **Limits to know:**
 - **100 MB per request** on the Free/Pro plans. Immich uploads bigger videos in chunks, but
@@ -509,7 +506,7 @@ Pi. Plan for direct play:
 - Media: put files in `/srv/media` on the Pi. The container sees it read-only at `/media`.
 
 **Website.** `https://lichnovsky.eu` shows a placeholder page until the real site exists
-(`apps/web/website/website.yaml`), and `www.` redirects to the apex. Build the site in its own
+(`apps/website/website.yaml`), and `www.` redirects to the apex. Build the site in its own
 repository. To plug it in, the image only has to meet this contract:
 
 | Requirement | Why |
@@ -553,7 +550,7 @@ Its webhook URL comes from the SealedSecret `alertmanager-notify` and is read fr
 never appears in Git.
 1. **Alertmanager → Discord.** Every alert goes to your Discord channel, grouped per namespace and
    alert, with a repeat every 12 h while it keeps firing and a message when it resolves. The rules
-   in `apps/monitoring/monitors` add Pi temperature, tunnel down and memory pressure alerts to the
+   in `platform/monitoring` add Pi temperature, tunnel down and memory pressure alerts to the
    built-in node/pod/PVC/disk alerts.
 2. **External heartbeat.** Anything on the Pi dies with the Pi, so this check runs on
    **Cloudflare**: a Worker (`cloudflare/heartbeat.tf`, code in `cloudflare/workers/heartbeat.js`)
@@ -619,7 +616,7 @@ built-in `NodeFilesystemSpaceFillingUp` alerts fire long before the card is full
 >   (originals are in `upload/`, or in `library/` if you turn on Immich's storage template)
 >
 > **When the bigger disk arrives:** mount it at `/srv/backup` (Phase 1 step 9), then add the
-> annotation `k8up.io/backup: "true"` to the `immich-library` PVC in `apps/photos/immich/immich.yaml`.
+> annotation `k8up.io/backup: "true"` to the `immich-library` PVC in `apps/immich/immich.yaml`.
 > The next nightly run backs up the library. Size the disk at *library size + 20 %* for history,
 > or leave out `thumbs/` and `encoded-video/`, which Immich can regenerate.
 
@@ -645,8 +642,8 @@ friend's rest-server.
   to the LAN/Tailscale:
   ```bash
   kubectl -n backups port-forward svc/rest-server 8000:8000 &
-  # REST_PASSWORD for the namespace: kubectl -n documents get secret k8up-repo -o jsonpath='{.data.REST_PASSWORD}' | base64 -d
-  export RESTIC_REPOSITORY=rest:http://documents:<REST_PASSWORD>@localhost:8000/documents/
+  # REST_PASSWORD for the namespace: kubectl -n papra get secret k8up-repo -o jsonpath='{.data.REST_PASSWORD}' | base64 -d
+  export RESTIC_REPOSITORY=rest:http://papra:<REST_PASSWORD>@localhost:8000/papra/
   export RESTIC_PASSWORD=<restic password>
   restic snapshots
   restic restore latest --target ./restore --include /data/papra-data
@@ -655,7 +652,7 @@ friend's rest-server.
   ```yaml
   apiVersion: k8up.io/v1
   kind: Restore
-  metadata: { name: restore-papra, namespace: documents }
+  metadata: { name: restore-papra, namespace: papra }
   spec:
     restoreMethod:
       folder: { claimName: papra-restore }
@@ -663,7 +660,7 @@ friend's rest-server.
     backend:
       repoPasswordSecretRef: { name: k8up-repo, key: RESTIC_PASSWORD }
       rest:
-        url: http://rest-server.backups.svc.cluster.local:8000/documents
+        url: http://rest-server.backups.svc.cluster.local:8000/papra
         userSecretRef: { name: k8up-repo, key: REST_USER }
         passwordSecretReg: { name: k8up-repo, key: REST_PASSWORD }
   ```
@@ -700,7 +697,7 @@ friend's rest-server.
      node, so these pods can't move: Postgres, Vaultwarden, Papra, Immich server, Prometheus, Loki,
      and the backup rest-server (the SD card is in rpi-01).
      AdGuard is pinned because clients use rpi-01's IP.
-   - **Goes to rpi-02:** Immich ML (uncomment the affinity in `apps/photos/immich/immich.yaml`), the
+   - **Goes to rpi-02:** Immich ML (uncomment the affinity in `apps/immich/immich.yaml`), the
      second cloudflared replica (the spread constraint does this automatically), CI runners, and
      stateless experiments. The website can run one replica on each node.
    - Better backups: rpi-02 can hold a **second copy** of `/srv/backup` (e.g. a nightly

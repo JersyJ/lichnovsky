@@ -1,0 +1,85 @@
+# Namespaces with Pod Security Admission levels. Every workload in this repo is written to the
+# `restricted` profile where it can be, and `warn: restricted` flags any regression. `enforce` is
+# `baseline` in namespaces with backups, because k8up's restic pods run as root there so they can
+# read every file the apps write (the k8up image's default UID 65532 can't read e.g. 0600 files).
+# https://kubernetes.io/docs/concepts/security/pod-security-standards/
+#
+# Platform namespaces keep the cluster running; app namespaces hold what you use. Uptime Kuma
+# shares `monitoring` (see above).
+#
+# --- platform -------------------------------------------------------------------------------------
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: networking            # cloudflared
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring            # Prometheus, Grafana, Loki, Alloy, Uptime Kuma; node-exporter needs hostNetwork/hostPID/hostPath
+  labels:
+    pod-security.kubernetes.io/enforce: privileged
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tailscale             # proxy pods set sysctls in a privileged init container
+  labels:
+    pod-security.kubernetes.io/enforce: privileged
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: backups               # restic rest-server
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+# --- apps -----------------------------------------------------------------------------------------
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: web                   # lichnovsky.eu website
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: vaultwarden
+  labels:
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/warn: restricted
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: dns                   # AdGuard Home: hostNetwork to see real client IPs on :53
+  labels:
+    pod-security.kubernetes.io/enforce: privileged
+    pod-security.kubernetes.io/warn: baseline
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: papra
+  labels:
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/warn: restricted
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: photos                # Immich + its Postgres + Valkey
+  labels:
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/warn: restricted
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tv                    # Jellyfin (tv.lichnovsky.eu)
+  labels:
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/warn: restricted

@@ -12,10 +12,10 @@ spec:
   source:
     repoURL: git@github.com:JersyJ/lichnovsky.git
     targetRevision: main
-    path: apps/documents/papra
+    path: apps/papra
   destination:
     server: https://kubernetes.default.svc
-    namespace: documents
+    namespace: papra
   syncPolicy:
     automated:
       prune: true
