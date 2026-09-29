@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: website
+  name: web
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "0"
@@ -12,7 +12,7 @@ spec:
   source:
     repoURL: git@github.com:JersyJ/lichnovsky.git
     targetRevision: main
-    path: apps/website
+    path: apps/web
   destination:
     server: https://kubernetes.default.svc
     namespace: web

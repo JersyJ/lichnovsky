@@ -57,6 +57,11 @@ the laptop in the repo folder.
 A private repository `JersyJ/lichnovsky` with this folder pushed to it. Argo CD reads it with a
 read-only deploy key (created in step 6).
 
+The website image is built by GitHub Actions on the first push that touches `web/`. GHCR makes a
+new package private, so once, after that first build: GitHub → your profile → *Packages* →
+`lichnovsky-web` → *Package settings* → *Change visibility* → **Public**. The image only holds the
+public website; the repository stays private.
+
 ### Discord
 A private channel (e.g. `#homelab`) → Edit Channel → Integrations → Webhooks → *New Webhook* → copy
 the URL. Alertmanager, Argo CD and the heartbeat Worker all post there.

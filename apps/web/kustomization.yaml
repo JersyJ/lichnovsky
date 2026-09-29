@@ -1,0 +1,13 @@
+# The site's source is in web/ at the repo root. CI builds it into an image and commits the new
+# tag here (.github/workflows/web.yml); Argo CD deploys it.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - deployment.yaml
+  - pdb.yaml
+  - service.yaml
+  - ingress.yaml
+images:
+  - name: web
+    newName: ghcr.io/jersyj/lichnovsky-web
+    newTag: "sha-12902362bc71"

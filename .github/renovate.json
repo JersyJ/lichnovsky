@@ -69,6 +69,13 @@
       "prBodyNotes": [
         "After merging: copy `host/03-install-k3s.sh` to the Pi and run it with sudo (it takes an etcd snapshot, then upgrades)."
       ]
+    },
+    {
+      "description": "The website image tag is set by CI (.github/workflows/web.yml), not Renovate",
+      "matchPackageNames": [
+        "ghcr.io/jersyj/lichnovsky-web"
+      ],
+      "enabled": false
     }
   ],
   "customManagers": [

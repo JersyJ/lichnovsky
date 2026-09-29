@@ -6,7 +6,7 @@ Nightly encrypted backups go to the Pi's SD card; alerts go to Discord.
 
 | App | URL | Public | Cloudflare Access |
 |---|---|---|---|
-| Website (in progress: placeholder with a live status widget) | https://lichnovsky.eu (`www.` redirects) | yes | no |
+| Website (in progress, [web/](web)) | https://lichnovsky.eu (`www.` redirects) | yes | no |
 | Vaultwarden | https://vault.lichnovsky.eu | yes | only `/admin` (the whole host would break the Bitwarden apps) |
 | Papra | https://papra.lichnovsky.eu | yes | yes |
 | Uptime Kuma | https://status.lichnovsky.eu | yes | yes; the status page `/status/home` is public |
@@ -32,9 +32,11 @@ bootstrap/    applied by hand once: Argo CD values + the root app
 argocd/       one Application per component; a file here gets deployed (later/ = not yet)
 platform/     Platform layer - namespaces, Traefik, TLS, tunnel, monitoring, backups
 apps/         Application layer
+web/          the website's source (Astro); CI builds it into the image apps/web deploys
 cloudflare/   OpenTofu for the infrastructure on Cloudflare side
 host/         files for the Pi itself, numbered in run order
 scripts/      seal.sh (create secrets), validate.py (check before push)
+.github/      Renovate, gitleaks, the website's CI workflow
 ```
 
 ## Rules

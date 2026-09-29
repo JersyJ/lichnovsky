@@ -12,8 +12,7 @@ all manifests, checks the sync order).
 - **New secret:** a case in `scripts/seal.sh`. Keep the `sealed-` file-name prefix (gitleaks ignores
   only those).
 - **New app:** a folder in `apps/` plus an Application in `argocd/`.
-- **nginx config of the website:** bump the `nginx-config-rev` annotation in `website.yaml`, because
-  nginx only reads its config at start.
+- **Website:** edit `web/` and push; CI builds and deploys it ([web/README.md](../web/README.md)).
 
 ## Updates
 

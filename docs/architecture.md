@@ -80,6 +80,7 @@ through the CDN, and the tunnel counts.
 | Uptime | **Uptime Kuma** | Checks from inside + the public status page |
 | Heartbeat | **Cloudflare Worker** (every 5 min) | Notices from outside when the whole Pi is gone |
 | Backups | **k8up** (restic) → **restic rest-server** on the SD card | Encrypted, deduplicated nightly snapshots on a second device |
+| Website | **Astro**, built by GitHub Actions into an nginx image (`web/`) | Static pages are light on the Pi and cache perfectly at Cloudflare; source, build and deploy in one repo |
 | Updates | **Renovate** | PRs for new chart and image versions; merging deploys them |
 
 Versions are pinned in the manifests; Renovate keeps them current.
@@ -108,8 +109,9 @@ big import fit; its ML models would add another 1–1.5 GB and use up everything
 ## Kubernetes structure
 
 Each app is **one YAML file with several resources** separated by `---` (Deployment, Service,
-Ingress…). That's standard Kubernetes practice: everything that belongs to an app is in one place and
-applied together.
+Ingress…), which Kubernetes recommends for related objects: everything that belongs to an app is in
+one place and applied together. The website (`apps/web/`) is split per resource and uses
+Kustomize, whose `images:` field is where CI writes each new image tag.
 
 **Namespaces:** platform pieces use functional names (`networking`, `monitoring`, `tailscale`,
 `backups`); apps use `web`, `vaultwarden`, `papra`, `dns` (AdGuard), `tv` (Jellyfin), `photos` (Immich).

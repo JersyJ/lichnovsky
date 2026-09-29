@@ -17,6 +17,7 @@ concurrency:
 
 env:
   DOCKER_METADATA_SHORT_SHA_LENGTH: 12
+  DOCKER_METADATA_ANNOTATIONS_LEVELS: manifest,index
 
 jobs:
   build-and-deploy:

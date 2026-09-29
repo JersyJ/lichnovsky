@@ -41,7 +41,7 @@ repos:
         files: ^cloudflare/.*\.(tf|tfvars|hcl)$
         pass_filenames: false
 
-      # Pre-push only: downloads charts and schemas. Needs helm and kubeconform.
+      # Pre-push only: downloads charts and schemas. Needs helm, kubectl and kubeconform.
       - id: validate-manifests
         name: helm render + kubeconform
         entry: uv run --script scripts/validate.py
