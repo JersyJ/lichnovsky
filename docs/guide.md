@@ -208,7 +208,8 @@ five stages. The root app only syncs the files **directly** in `argocd/`. Everyt
 | **2 Observability** | kube-prometheus-stack, Loki, Alloy, monitors, Discord alerts | a test alert reaches Discord; note the baseline RAM for a few days |
 | **3 Critical apps + backups** | Vaultwarden, AdGuard + Tailscale, k8up + rest-server | first nightly backup succeeds, then **do a restore test** (§13) |
 | **4 Lighter apps** | Papra, Uptime Kuma | RAM still comfortable |
-| **5 Heavy apps** | CloudNativePG + Immich, then Jellyfin | first Immich import overnight at low job concurrency; watch memory before adding Jellyfin |
+| **5 Media** | Jellyfin | direct play works at home and over Tailscale |
+| **6 Immich** (future, `later/stage-5-immich`) | CloudNativePG + Immich | import photos in batches at low job concurrency; watch memory. If RAM is tight, move Immich ML to a second Pi first |
 
 Enabling a stage: `git mv argocd/later/stage-2-observability/*.yaml argocd/ && git commit -m "feat: stage 2" && git push`.
 Nothing in an early stage depends on a CRD from a later one (for example, cloudflared's

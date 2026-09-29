@@ -14,4 +14,5 @@ git commit -m "feat: enable stage 2 (observability)" && git push
 | 2 `stage-2-observability` | kube-prometheus-stack, Loki, Alloy, monitors + Discord alerts | test alert reaches Discord; note baseline RAM |
 | 3 `stage-3-critical` | Vaultwarden, AdGuard, Tailscale, k8up + rest-server | first nightly backup ok; **do a restore test** |
 | 4 `stage-4-apps` | Papra, Uptime Kuma | RAM still comfortable |
-| 5 `stage-5-heavy` | CloudNativePG + Immich, Jellyfin | first import overnight at low job concurrency; watch memory |
+| 5 (enabled) | Jellyfin | direct play works on LAN / Tailscale |
+| 6 `stage-5-immich` (future) | CloudNativePG + Immich | first import in batches at low job concurrency; watch memory |
