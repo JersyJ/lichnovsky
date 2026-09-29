@@ -1,11 +1,73 @@
 ---
 import Base from "../layouts/Base.astro";
+import ServiceCard from "../components/ServiceCard.astro";
 import Status from "../components/Status.astro";
+import { groups, statusPage } from "../data/services";
 ---
 <Base>
   <main>
-    <h1>lichnovsky.eu</h1>
-    <p class="lead">Something is being built here.</p>
-    <Status />
+    <header>
+      <h1>lichnovsky<span>.eu</span></h1>
+      <p>Self-hosted services, running on a Raspberry Pi at home.</p>
+      <Status />
+    </header>
+
+    {groups.map((group) => (
+      <section aria-labelledby={`group-${group.title}`}>
+        <h2 id={`group-${group.title}`}>{group.title}</h2>
+        <div class="grid">
+          {group.services.map((service) => <ServiceCard service={service} />)}
+        </div>
+      </section>
+    ))}
+
+    <footer>
+      <a href={statusPage}>Status page</a>
+      <span aria-hidden="true">·</span>
+      <span id="updated"></span>
+    </footer>
   </main>
 </Base>
+
+<style>
+  main {
+    width: min(60rem, 100% - 2.5rem);
+    margin: 0 auto;
+    padding: clamp(3rem, 10vh, 6rem) 0 3rem;
+  }
+  header { margin-bottom: 3rem; }
+  h1 {
+    margin: 0;
+    font-size: clamp(2rem, 5vw, 2.75rem);
+    font-weight: 700;
+    letter-spacing: -0.035em;
+    line-height: 1.1;
+  }
+  h1 span { color: var(--faint); }
+  header p { margin: 0.6rem 0 1.25rem; color: var(--muted); }
+  section + section { margin-top: 2.5rem; }
+  h2 {
+    margin: 0 0 0.9rem;
+    color: var(--faint);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(16.5rem, 1fr));
+    gap: 0.75rem;
+  }
+  footer {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 3.5rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--border);
+    color: var(--faint);
+    font-size: 0.85rem;
+  }
+  footer a { text-decoration: none; }
+  footer a:hover { color: var(--text); }
+</style>

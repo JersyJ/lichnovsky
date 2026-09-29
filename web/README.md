@@ -16,12 +16,16 @@ status page (`astro.config.mjs`).
 
 | Path | What |
 |---|---|
+| `src/data/services.ts` | the services on the start page: name, URL, icon, group, status monitor |
 | `src/pages/` | one file per URL (`index.astro` → `/`, `404.astro` → the not-found page) |
-| `src/layouts/Base.astro` | the HTML shell and global styles |
-| `src/components/Status.astro` | the live status widget |
-| `public/` | files copied as-is (favicon, images); create it when needed |
+| `src/layouts/Base.astro` | the HTML shell and the colour tokens (light and dark follow the system) |
+| `src/components/` | `ServiceCard`, `Icon` (inline SVG icons), `Status` (live status pill and dots) |
+| `public/` | files copied as-is (`favicon.svg`) |
 | `nginx.conf` | how the image serves the site: cache headers, `/healthz`, the `/status-data/` proxy |
 | `Dockerfile` | builds the site, then copies it into the nginx image |
+
+**Adding a service:** one entry in `src/data/services.ts`. For a live status dot, set `monitor` to the
+monitor's name on the public status page `home` in Uptime Kuma (and add the monitor to that page).
 
 ## Deploy
 

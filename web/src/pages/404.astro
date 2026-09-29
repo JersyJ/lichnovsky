@@ -3,7 +3,23 @@ import Base from "../layouts/Base.astro";
 ---
 <Base title="Not found · lichnovsky.eu">
   <main>
-    <h1>404</h1>
-    <p class="lead">This page doesn't exist. <a href="/">Back to lichnovsky.eu</a></p>
+    <p class="code">404</p>
+    <h1>This page doesn't exist.</h1>
+    <a href="/">← Back to lichnovsky.eu</a>
   </main>
 </Base>
+
+<style>
+  main {
+    display: grid;
+    place-content: center;
+    gap: 0.5rem;
+    min-height: 100vh;
+    padding: 1.5rem;
+    text-align: center;
+  }
+  .code { margin: 0; color: var(--faint); font: 600 0.85rem/1 var(--mono); letter-spacing: 0.1em; }
+  h1 { margin: 0 0 0.75rem; font-size: 1.5rem; letter-spacing: -0.02em; }
+  a { color: var(--muted); text-decoration: none; }
+  a:hover { color: var(--text); }
+</style>

@@ -1,24 +1,36 @@
 ---
-// Live status of the public services, from the Uptime Kuma status page "home".
-// nginx proxies /status-data/ to Uptime Kuma inside the cluster (nginx.conf); `npm run dev`
-// proxies it to status.lichnovsky.eu (astro.config.mjs).
+// Overall status pill, plus the dots on the service cards (matched by data-monitor = the
+// monitor's name). Data: the public Uptime Kuma status page "home" via /status-data/, which
+// nginx proxies inside the cluster (nginx.conf) and `npm run dev` proxies to status.lichnovsky.eu.
 ---
-<section class="card" aria-live="polite">
-  <div class="summary"><span class="dot" id="overall"></span><span id="summary">Checking services…</span></div>
-  <ul id="services"></ul>
-</section>
-<footer><a href="https://status.lichnovsky.eu/status/home">Full status page</a> · <span id="updated"></span></footer>
+<p class="pill" aria-live="polite">
+  <span class="dot" id="overall"></span>
+  <span id="summary">Checking services…</span>
+</p>
+
+<style>
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    margin: 0;
+    padding: 0.35rem 0.8rem 0.35rem 0.7rem;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
+</style>
 
 <script>
-  type Beat = { status: number };
   type StatusPage = { publicGroupList: { monitorList: { id: number; name: string }[] }[] };
-  type Heartbeats = { heartbeatList: Record<string, Beat[]>; uptimeList: Record<string, number> };
+  type Heartbeats = { heartbeatList: Record<string, { status: number }[]> };
 
   // Uptime Kuma heartbeat codes: 1 up, 0 down, 2 pending, 3 maintenance.
-  const LABEL: Record<number, [string, string]> = {
+  const STATE: Record<number, [state: string, label: string]> = {
     1: ["up", "Operational"], 0: ["down", "Down"], 2: ["wait", "Pending"], 3: ["wait", "Maintenance"],
   };
-  const $ = (id: string) => document.getElementById(id)!;
 
   async function get<T>(url: string): Promise<T> {
     const r = await fetch(url, { cache: "no-store" });
@@ -26,40 +38,38 @@
     return r.json();
   }
 
+  function mark(dot: Element | null, state: string, label: string) {
+    if (!dot) return;
+    dot.setAttribute("data-state", state);
+    dot.setAttribute("title", label);
+  }
+
   async function refresh() {
+    const overall = document.getElementById("overall");
+    const summary = document.getElementById("summary")!;
     try {
       const [page, beats] = await Promise.all([
         get<StatusPage>("/status-data/home"),
         get<Heartbeats>("/status-data/heartbeat/home"),
       ]);
-      let down = 0, total = 0;
-      const items = page.publicGroupList.flatMap((g) => g.monitorList).map((m) => {
-        const last = beats.heartbeatList[m.id]?.at(-1);
-        const [cls, text] = (last && LABEL[last.status]) || ["", "No data"];
-        const uptime = beats.uptimeList[`${m.id}_24`];
-        total++;
-        if (last?.status === 0) down++;
-
-        const li = document.createElement("li");
-        const dot = li.appendChild(document.createElement("span"));
-        dot.className = `dot ${cls}`;
-        dot.title = text;
-        const name = li.appendChild(document.createElement("span"));
-        name.className = "name";
-        name.textContent = m.name;
-        const up = li.appendChild(document.createElement("span"));
-        up.className = "uptime";
-        up.textContent = uptime == null ? text : `${(uptime * 100).toFixed(2)} % (24 h)`;
-        return li;
-      });
-      $("services").replaceChildren(...items);
-      $("overall").className = `dot ${down ? "down" : "up"}`;
-      $("summary").textContent = down ? `${down} of ${total} services down` : "All systems operational";
+      const down: string[] = [];
+      for (const m of page.publicGroupList.flatMap((g) => g.monitorList)) {
+        const status = beats.heartbeatList[m.id]?.at(-1)?.status;
+        const [state, label] = (status !== undefined && STATE[status]) || ["", "No data"];
+        if (status === 0) down.push(m.name);
+        document.querySelectorAll(`[data-monitor="${CSS.escape(m.name)}"] .dot`)
+          .forEach((dot) => mark(dot, state, label));
+      }
+      mark(overall, down.length ? "down" : "up", "");
+      summary.textContent = down.length
+        ? `${down.join(", ")} ${down.length === 1 ? "is" : "are"} down`
+        : "All systems operational";
     } catch {
-      $("overall").className = "dot wait";
-      $("summary").textContent = "Status currently unavailable";
+      mark(overall, "wait", "");
+      summary.textContent = "Status unavailable";
     }
-    $("updated").textContent = `updated ${new Date().toLocaleTimeString()}`;
+    const updated = document.getElementById("updated");
+    if (updated) updated.textContent = `Updated ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
   }
 
   refresh();
