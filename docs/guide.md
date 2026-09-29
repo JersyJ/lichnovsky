@@ -20,7 +20,7 @@ cloud storage costs. A second Pi can join later.
 6. [Phase 1: Hardware and OS](#6-phase-1-hardware-and-os)
 7. [Phase 2: k3s](#7-phase-2-k3s)
 8. [Phase 3: Argo CD bootstrap and secrets](#8-phase-3-argo-cd-bootstrap-and-secrets)
-9. [Phase 4: Cloudflare Tunnel and Access](#9-phase-4-cloudflare-tunnel-and-access)
+9. [Phase 4: Cloudflare Tunnel and Access (as code)](#9-phase-4-cloudflare-tunnel-and-access-as-code)
 10. [Phase 5: LAN and remote access (AdGuard + Tailscale)](#10-phase-5-lan-and-remote-access)
 11. [Phase 6: First run of each app](#11-phase-6-first-run-of-each-app)
 12. [Day-2 operations](#12-day-2-operations)
@@ -94,44 +94,46 @@ which the Bitwarden and Immich apps need.
 | DNS | **AdGuard Home** | Ad blocking + split-horizon DNS for the app names | v0.107.79 |
 | Passwords | **Vaultwarden** | Bitwarden-compatible, tiny | 1.37.3 |
 | Documents | **Papra** | Simple document archive; rootless image | 26.6.2 |
-| Photos | **Immich** | Google Photos replacement | v3.2.2 |
-| Postgres | **CloudNativePG** + VectorChord image | Declarative Postgres; nightly `pg_dump` for backups | chart 0.29.1 / 1.30.1 |
+| Photos | **Immich** (future stage, not deployed yet) | Google Photos replacement | v3.2.2 |
+| Postgres | **CloudNativePG** + VectorChord image (with Immich) | Declarative Postgres; nightly `pg_dump` for backups | chart 0.29.1 / 1.30.1 |
 | Media | **Jellyfin** (LAN/Tailscale, direct play) | Open source. The Pi 5 has **no HW encoder**, see §11 | 12.1 |
 | Metrics | **kube-prometheus-stack** | Prometheus Operator, Grafana, Alertmanager, node-exporter, KSM | 91.8.1 |
 | Logs | **Loki** (single binary) + **Grafana Alloy** | Alloy replaces Promtail, which reached EOL on 2026-03-02 | 7.3.0 / 1.13.0 |
-| Uptime | **Uptime Kuma** 2.x | Friendly checks + status page | 2.5.5 |
+| Uptime | **Uptime Kuma** 2.x | Internal checks + a public status page | 2.5.5 |
+| Heartbeat | **Cloudflare Worker** (cron, every 5 min) | Notices from outside when the whole Pi is unreachable; posts to Discord | – |
 | Backups | **k8up** (restic) → **restic rest-server** on the SD card | Encrypted, deduplicated nightly snapshots on a second device; no cloud bill | 4.10.0 / 0.14.0 |
-| Website | **nginx-unprivileged** placeholder, to be replaced by your own image | Served from the Pi through the tunnel | 1.31.6 |
+| Website | **nginx-unprivileged** placeholder with a live status widget, to be replaced by your own image | Served from the Pi through the tunnel | 1.31.6 |
 | Updates | **Renovate** | Opens PRs for new chart/image versions; you merge, Argo CD deploys | - |
 
-### Honest memory budget (8 GB Pi)
+### Memory: measured on the Pi (not estimates)
 
-The numbers are typical steady-state working sets. Limits in the manifests are higher, so a single
-pod can burst.
+Measured with `free -m` after each stage went live (7.9 GB total). "Used" excludes page cache:
 
-| Group | Typical RAM |
-|---|---|
-| OS, containerd, k3s server with embedded etcd | 700 - 900 MB |
-| k3s add-ons (Traefik, CoreDNS, metrics-server, local-path, svclb) | ~150 MB |
-| Argo CD (controller, repo-server, server, redis, appset) | 400 - 550 MB |
-| Operators (Sealed Secrets, cert-manager, CNPG, k8up + rest-server, Tailscale + connector) | ~300 MB |
-| kube-prometheus-stack (Prometheus, Grafana, operator, KSM, node-exporter, Alertmanager) | 700 - 1,000 MB |
-| Loki + Alloy | 250 - 350 MB |
-| cloudflared ×2, AdGuard, Vaultwarden, Papra, Uptime Kuma, website (placeholder) | ~450 MB |
-| Immich server + Postgres + Valkey (ML idle) | 700 - 1,100 MB |
-| Jellyfin (idle / direct play) | 200 - 400 MB |
-| **Idle total** | **≈ 3.9 - 5.2 GB** |
-| Immich ML while indexing (face/CLIP models loaded) | +1.0 - 1.5 GB |
-| Immich thumbnail / video transcode jobs, Jellyfin CPU transcode | +0.5 - 1.0 GB |
-| **Busy peak** | **≈ 6 - 7.5 GB** |
+| After stage | Used | Available | What the stage added |
+|---|---|---|---|
+| 1 Foundation (k3s, Argo CD, Sealed Secrets, cert-manager, cloudflared, website) | 2.2 GB | 5.9 GB | – |
+| 2 Observability (Prometheus, Grafana, Alertmanager, Loki, Alloy) | 4.45 GB → **3.7 GB** after tuning | 3.6 → **4.3 GB** | ~1.5 GB |
+| 3 Vaultwarden, AdGuard, Tailscale, backups | 4.2 GB | 3.9 GB | ~0.5 GB |
+| 4 Papra, Uptime Kuma | 4.95 GB | 3.1 GB | ~0.45 GB |
+| 5 Jellyfin (idle / direct play) | ~5.0 GB | 3.1 GB | small at idle |
 
-What this means:
-- The idle total fits comfortably. **The first big photo import will not** fit comfortably. For the
-  initial upload, lower Immich's job concurrency (Administration → Jobs) and let it run overnight.
-- The kubelet reserves 768 Mi and evicts pods below 256 Mi free (`host/k3s-config.yaml`), so a busy
-  moment kills one pod instead of freezing the whole Pi.
-- If RAM is tight, move **Immich ML** to the second Pi first; it's the biggest variable load.
-  Turning ML off (Administration → Settings → Machine Learning) also works.
+The biggest single consumers: **k3s-server** (API server + etcd, ~1.3 GB), **Grafana** (~350 MB with
+its plugin processes), **Prometheus** (~340 MB), **Argo CD's controller** (~320 MB), **Papra** (~300 MB).
+
+What got the stage-2 number down (see `host/k3s-memory.conf`, `bootstrap/argocd-values.yaml`):
+- `GOMEMLIMIT=1300MiB` for k3s (a systemd drop-in): Go collects garbage harder instead of letting the
+  heap grow to ~2× its live data. k3s went from ~1.8 GB to ~1.3 GB.
+- `GOMEMLIMIT=650MiB` for Argo CD's controller, and Events / ACME / k3s-internal types excluded
+  from its cache.
+- The install-time peak of the big Prometheus CRDs settles by itself within an hour.
+
+**For Immich (the future stage):** CNPG + Postgres + Immich server + ML add ~1.3 GB at idle and up
+to ~3 GB during the first import. With ~3 GB available that's tight: lower Immich's job concurrency
+(Administration → Jobs), import in batches, and watch the memory alert. If it's still tight, move
+Immich ML to a second Pi first (its manifest has the node affinity ready), or turn ML off.
+
+The kubelet reserves 768 Mi and evicts pods below 256 Mi free (`host/k3s-config.yaml`), so a busy
+moment restarts one pod instead of freezing the whole Pi.
 
 ---
 
@@ -144,7 +146,7 @@ What this means:
 | `vault.lichnovsky.eu` | Vaultwarden | yes | only on `/admin` | yes |
 | `photos.lichnovsky.eu` | Immich | yes | no (breaks mobile app + share links) | yes |
 | `papra.lichnovsky.eu` | Papra | yes | yes (email OTP / GitHub) | yes |
-| `status.lichnovsky.eu` | Uptime Kuma | yes | yes, with bypass for `/status/*` if you want a public status page | yes |
+| `status.lichnovsky.eu` | Uptime Kuma | yes | yes for the admin UI; **bypass** for the public status page `/status/home` and its data | yes |
 | `argocd.lichnovsky.eu` | Argo CD | yes | **yes, required** | yes |
 | `grafana.lichnovsky.eu` | Grafana | yes | **yes, required** | yes |
 | `tv.lichnovsky.eu` | Jellyfin | **no** | - | yes |
@@ -152,6 +154,13 @@ What this means:
 
 Private names never get a public DNS record. They only exist as AdGuard rewrites, and Tailscale
 reaches them through split DNS.
+
+**Cloudflare Access only applies to the internet path.** At home and over Tailscale, requests go
+straight to Traefik, so each app is protected by its own login there. That's why sign-ups are closed
+everywhere (Vaultwarden invitations only, Papra `AUTH_IS_REGISTRATION_ENABLED=false`, a single
+admin in Uptime Kuma / Grafana / Argo CD / AdGuard). Plain `http://` is redirected to `https://` by
+Traefik (`platform/cluster/traefik/redirect-https.yaml`); tunnel traffic passes through without a
+loop, because cloudflared sends `X-Forwarded-Proto: https`.
 
 ---
 
@@ -233,14 +242,29 @@ ServiceMonitor lives with the stage-2 monitors), and `scripts/validate.py` enfor
 
 ## 5. Phase 0: Accounts and prerequisites
 
-1. **Domain on Cloudflare.** `lichnovsky.eu` uses Cloudflare nameservers (Free plan is fine).
-   - SSL/TLS → Edge Certificates: turn on *Always Use HTTPS*, and *HSTS* once everything works.
+1. **Domain on Cloudflare.** Registrar (e.g. Porkbun) stays; only the nameservers move:
+   Cloudflare → *Connect a domain* → Free plan. Delete the registrar's parking records (`*`/`www`
+   CNAMEs, `_acme-challenge` TXTs) during the import. **Turn DNSSEC off at the registrar first**, or
+   the domain stops resolving after the nameserver switch. At Porkbun that switch is tied to its own
+   nameservers, so using its "connect to Cloudflare" option is the easy path. TLS settings, DNSSEC
+   and everything else are then managed as code (Phase 4).
 2. **Cloudflare API token for cert-manager** (manual on purpose): My Profile → API Tokens →
    template *Edit zone DNS*, zone `lichnovsky.eu` only. The OpenTofu bootstrap (R2 bucket,
    OpenTofu token, Zero Trust team) is in `cloudflare/README.md`; see Phase 4.
-3. **Tailscale account.** In the tailnet policy, add `tagOwners` for `tag:k8s-operator` and `tag:k8s`.
-   Then create the operator's OAuth client
-   ([KB 1236](https://tailscale.com/kb/1236/kubernetes-operator) lists the current scopes).
+3. **Tailscale account** (free Personal plan; log in with Google/GitHub/…). Admin console →
+   **Access controls** → add to the policy file (keep the rest):
+   ```jsonc
+   "tagOwners": {
+     "tag:k8s-operator": ["autogroup:admin"],
+     "tag:k8s": ["tag:k8s-operator"],
+   },
+   "autoApprovers": {
+     "routes": { "192.168.50.244/32": ["tag:k8s"] },
+   },
+   ```
+   Then **Settings → Trust credentials** → new OAuth client with scopes *General → Services*,
+   *Devices → Core*, *Keys → Auth Keys* (each Read + Write) and tag `tag:k8s-operator`.
+   Scopes change between releases; check the [operator quickstart](https://tailscale.com/docs/kubernetes-operator/quickstart).
 4. **Private GitHub repo** `JersyJ/lichnovsky`. Push this folder to it, then replace every
    `CHANGEME` (`grep -rn CHANGEME .`):
    - `git@github.com:JersyJ/lichnovsky.git` → your repo URL (in `bootstrap/root.yaml` and `argocd/*.yaml`):
@@ -271,68 +295,68 @@ ServiceMonitor lives with the stage-2 monitors), and `scripts/validate.py` enfor
 
 **OS: Raspberry Pi OS Lite (64-bit, Trixie)**
 1. Flash with Raspberry Pi Imager directly to the NVMe drive (USB adapter), or to the SD card and then
-   `rpi-clone` it to NVMe (step 9 wipes the card afterwards). Set hostname `rpi-01`, your user, an SSH key, and turn off password SSH.
+   `rpi-clone` it to NVMe (the setup script wipes the card afterwards). In Imager set your user, an
+   SSH key, Wi-Fi, and turn off password SSH. The hostname can be anything; step 3 renames it.
 2. Boot from NVMe: `sudo rpi-eeprom-config --edit` and set `BOOT_ORDER=0xf416` (NVMe → SD → USB).
    Optional PCIe Gen 3 (faster, officially "not certified"): add `dtparam=pciex1_gen=3` to
    `/boot/firmware/config.txt`.
-3. **Update the OS and firmware:** `sudo apt update && sudo apt full-upgrade -y && sudo rpi-eeprom-update -a`.
-4. **Enable the memory cgroup.** It is required: Pi firmware still adds `cgroup_disable=memory` on its
-   own. Without this, memory limits are silently not enforced, which makes the RAM plan above useless.
-   ```bash
-   sudo sed -i '1 s/$/ cgroup_memory=1 cgroup_enable=memory/' /boot/firmware/cmdline.txt
-   sudo reboot
-   # verify: must print "memory"
-   grep -o memory /sys/fs/cgroup/cgroup.controllers
-   ```
-5. **Static address.** Reserve `192.168.50.244` for the Pi in the router's DHCP. Keep the Pi's own
-   resolver on the router or a public resolver, **not** AdGuard, or CoreDNS depends on a pod
-   that isn't running yet at boot.
-6. **Cap the journal** and turn on security updates:
-   ```bash
-   sudo install -D -m 0644 host/journald-homelab.conf /etc/systemd/journald.conf.d/homelab.conf
-   sudo systemctl restart systemd-journald
-   sudo apt install -y unattended-upgrades && sudo dpkg-reconfigure -plow unattended-upgrades
-   ```
-7. **Swap.** Check `swapon --show`. A small zram swap is fine as a last resort. Don't add a swapfile
-   on the SSD.
-8. **Port 53 must be free** for AdGuard: `sudo ss -lunp | grep ':53 '` should print nothing.
-9. **Backup disk: the SD card at `/srv/backup`.** Check with `lsblk` that the card is `mmcblk0` and
-   that you booted from NVMe (`findmnt /` shows `nvme0n1p2`). **This erases the card.**
-   ```bash
-   sudo wipefs -a /dev/mmcblk0
-   sudo parted -s /dev/mmcblk0 mklabel gpt mkpart backup ext4 0% 100%
-   sudo mkfs.ext4 -L backup /dev/mmcblk0p1
+3. **Rename to `rpi-01` through cloud-init** (`host/set-hostname.sh`). Imager configures the hostname
+   via cloud-init, which re-applies it from its *cache* on every boot, so a plain `hostnamectl`
+   rename would be undone. The script edits cloud-init's seed (`/boot/firmware/user-data`) and drops
+   only the cache; the instance ID stays, so no first-boot steps re-run. Do this **before** k3s: the
+   node name is baked into certificates and volume node-affinities.
+4. **Static address.** Reserve the Pi's IP (here `192.168.50.244`) in the router's DHCP. Keep the Pi's
+   own resolver on the router or a public resolver, **not** AdGuard, or CoreDNS depends on a pod that
+   isn't running yet at boot. **Ethernet** is recommended: over Wi-Fi, copies run at ~13 MB/s.
+5. **Run the host setup** (`host/setup-pi.sh`, idempotent). It:
+   - enables the **memory cgroup** in `cmdline.txt` (Pi firmware disables it; without it, memory
+     limits are silently not enforced)
+   - installs unattended-upgrades, parted, smartmontools, nvme-cli, jq; stages a newer bootloader
+   - caps the journal at **1 GB / 1 month** (`host/journald-homelab.conf`)
+   - turns **Wi-Fi power saving off** (latency spikes and dropped connections otherwise)
+   - formats the **SD card as the backup disk** (ext4, label `backup`, mounted at `/srv/backup`) —
+     only if it is `mmcblk0`, unmounted, 100–140 GB, and root is on NVMe. The empty mount point is
+     made immutable, so if the card is ever missing, backups **fail** instead of silently filling
+     the NVMe.
+   - creates `/srv/backup/{restic,etcd}` and `/srv/media`
 
-   # Make the empty mount point immutable. If the card is ever missing, backups then FAIL
-   # instead of silently filling the NVMe underneath.
-   sudo mkdir -p /srv/backup && sudo chattr +i /srv/backup
-   echo 'LABEL=backup /srv/backup ext4 defaults,noatime,nofail,x-systemd.device-timeout=10s 0 2' \
-     | sudo tee -a /etc/fstab
-   sudo systemctl daemon-reload && sudo mount /srv/backup
-
-   sudo mkdir -p /srv/backup/restic /srv/backup/etcd
-   sudo chown 1000:1000 /srv/backup/restic      # the rest-server pod runs as UID 1000
-   sudo mkdir -p /srv/media                     # Jellyfin library (on the NVMe)
+   ```bash
+   scp host/setup-pi.sh host/set-hostname.sh host/journald-homelab.conf rpi:lichnovsky-setup/
+   # sudo needs a real terminal: run these in your own terminal, not in a non-interactive shell
+   ssh -t rpi 'sudo bash ~/lichnovsky-setup/set-hostname.sh rpi-01 && sudo reboot'
+   ssh -t rpi 'sudo bash ~/lichnovsky-setup/setup-pi.sh 2>&1 | tee ~/lichnovsky-setup/setup.log && sudo reboot'
+   # verify after the reboot: must print "memory"
+   ssh rpi 'grep -o memory /sys/fs/cgroup/cgroup.controllers; findmnt /srv/backup; hostname'
    ```
-   Later, when you add a bigger disk, mount it at `/srv/backup` instead and copy the folder over
-   (`rsync -aH`). The cluster doesn't notice the difference.
+6. **Swap.** Trixie ships a 2 GB zram swap; that's fine (k3s sets `failSwapOn: false`, pods don't
+   swap). Don't add a swapfile on the SSD.
+7. **Port 53 must be free** for AdGuard: `sudo ss -lunp | grep ':53 '` should print nothing.
+8. **Media folder:** `sudo chown <you>: /srv/media`, so you can copy media there as your user
+   (UID 1000, the same UID Jellyfin reads with).
+
+Later, when you add a bigger backup disk, mount it at `/srv/backup` instead and copy the folder over
+(`rsync -aH`). The cluster doesn't notice the difference.
 
 ---
 
 ## 7. Phase 2: k3s
 
 ```bash
-sudo mkdir -p /etc/rancher/k3s
-sudo cp host/k3s-config.yaml /etc/rancher/k3s/config.yaml    # edit node-ip first!
-curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="v1.36.4+k3s1" sh -
-
-# kubeconfig for your user (the file is root-only by design)
-mkdir -p ~/.kube && sudo cat /etc/rancher/k3s/k3s.yaml > ~/.kube/config && chmod 600 ~/.kube/config
-kubectl get nodes -o wide     # rpi-01 Ready
+# on the Pi (edit node-ip in host/k3s-config.yaml first)
+sudo install -D -m 0600 host/k3s-config.yaml /etc/rancher/k3s/config.yaml
+curl -sfL https://get.k3s.io | sudo INSTALL_K3S_VERSION="v1.36.4+k3s1" sh -
 ```
 
-From your laptop: copy the same file and replace `127.0.0.1` with `192.168.50.244`.
-The API cert already covers it via `tls-san`.
+Work from your laptop: copy the admin kubeconfig (root-only on the Pi, by design), point it at the
+Pi, and give the context a real name:
+```bash
+ssh -t rpi 'mkdir -p ~/.kube && sudo install -m 0600 -o "$USER" /etc/rancher/k3s/k3s.yaml ~/.kube/config'
+(umask 077; mkdir -p ~/.kube && ssh rpi 'cat ~/.kube/config' > ~/.kube/config)   # no -t: keeps LF line endings
+sed -i 's#127.0.0.1#192.168.50.244#; s/\bdefault\b/lichnovsky/g' ~/.kube/config
+kubectl get nodes -o wide     # rpi-01 Ready
+```
+The API certificate already covers the IP and `rpi-01`/`rpi-01.local` via `tls-san`. (On the Pi
+itself, `kubectl` is k3s's wrapper, which reads the root-only file; use `sudo` there, or the laptop.)
 
 Then cap k3s's Go heap (`host/k3s-memory.conf`, a systemd drop-in, so reinstalls don't touch it):
 ```bash
@@ -390,15 +414,26 @@ git add apps && git commit -m "feat: sealed secrets" && git push
 
 # 5. Back up the Sealed Secrets private key OFF the cluster (password manager / offline).
 #    Without it, a rebuilt cluster can't decrypt anything in Git.
-kubectl -n kube-system get secret -l sealedsecrets.bitnami.com/sealed-secrets-key -o yaml \
-  > sealed-secrets-key.backup.yaml     # git-ignored; store it safely, then delete it locally
+(umask 077; kubectl -n kube-system get secret -l sealedsecrets.bitnami.com/sealed-secrets-key \
+  -o yaml > ~/sealed-secrets-key.backup.yaml)   # store it safely, then delete the local file
+
+# 6. Also save the k3s server token: needed to restore the cluster from an etcd snapshot.
+ssh -t rpi 'sudo cat /var/lib/rancher/k3s/server/token'
 ```
+
+If the `argocd` app then hangs at *waiting for deletion of hook … argocd-redis-secret-init*: the
+first `helm install` created that hook's objects, and Argo CD won't delete what it doesn't own.
+Delete them once (§15); the `argocd-redis` Secret itself is kept.
 
 `scripts/seal.sh <name>` asks only for values you have to paste: the cert-manager DNS token, the
 Discord webhook URL, the Tailscale OAuth client, and the Vaultwarden `ADMIN_TOKEN`. That
-last one is an **argon2 hash**, not a password: `docker run --rm -it vaultwarden/server:1.37.3 /vaultwarden hash`.
+last one is an **argon2 hash**, not a password; the cluster can compute it:
+`kubectl run vw-hash --rm -it --restart=Never --image=vaultwarden/server:1.37.3 -- /vaultwarden hash`.
 Everything else is generated. The Grafana password and the **restic password** are printed once, so
 save them in your password manager right away. Run `scripts/seal.sh` without arguments for the list.
+Plaintext never touches the disk: the Secret is built in memory and reaches `kubeseal` via stdin.
+A SealedSecret is encrypted for one **namespace + name**; moving an app to another namespace means
+re-sealing its secrets. (gitleaks is told to ignore `sealed-*.yaml`; their ciphertext looks like keys.)
 
 When stage 1 is healthy, continue stage by stage (§4, *Staged rollout*).
 
@@ -420,18 +455,30 @@ team) and the commands are in [`cloudflare/README.md`](../cloudflare/README.md).
 `tofu output`.
 
 What it sets up, and why:
+- **DNSSEC** (`dnssec.tf`): Cloudflare signs the zone. The chain of trust needs the key entered once
+  at the registrar: `tofu output dnssec_keydata` (for `.eu`, Porkbun's *keyData*: flags 257,
+  protocol 3, algorithm 13, public key) and `tofu output dnssec_ds` (*dsData*). Leave *Max Sig
+  Life* empty. Check: public resolvers answer `AD: true` for `lichnovsky.eu`.
+- **Heartbeat Worker** (`heartbeat.tf`, `workers/heartbeat.js`): checks `lichnovsky.eu/healthz` every
+  5 min from Cloudflare and posts 🔴/🟢 to Discord (§12).
 - **Public hostnames** `lichnovsky.eu`, `www`, `vault`, `photos`, `papra`, `status`, `argocd`,
   `grafana` → `http://traefik.kube-system.svc.cluster.local:80`, each with a proxied CNAME to the
   tunnel. **No wildcard**, so `tv` (Jellyfin) and `dns` (AdGuard) never get a public record.
 - **Access** (e-mail one-time PIN) on `argocd.`, `grafana.`, `papra.`, `status.`, and on
   `vault.lichnovsky.eu/admin` only. Protecting all of `vault.` would break the Bitwarden apps.
+  A second, path-specific app **bypasses** Access for Uptime Kuma's public status page
+  (`/status`, `/status-page`, `/api/status-page`, `/assets`, `/upload`, icons); more specific paths
+  win, so the admin UI stays protected. The first time Access is used, Zero Trust must be enabled
+  once in the dashboard (team name + Free plan).
   Nothing on `photos.`: the Immich apps and share links need direct access, so they rely on
   Immich's own login plus the rate limit.
 - **Rate limit** (the Free plan has one rule, which can match on **path only**, counted per IP over
   10 s): URI path contains `/identity/connect/token` (Vaultwarden) or `/api/auth/login` (Immich),
   10 requests / 10 s → block for 10 s.
-- **Cache rule** for `lichnovsky.eu`: the website is served from Cloudflare's edge according to
-  its `Cache-Control` headers, so traffic spikes and short Pi restarts barely matter.
+- **Cache rule** for `lichnovsky.eu` (except `/healthz`): the website is served from Cloudflare's
+  edge according to its `Cache-Control` headers. Without such a header, Cloudflare caches a page
+  for **2 hours**, so the site must send one (the placeholder uses `max-age=60`, and `no-store` for
+  its live status data).
 - **TLS:** Full (strict), Always Use HTTPS, TLS ≥ 1.2. Add HSTS later, once everything works.
 - **Real client IPs:** cloudflared passes `X-Forwarded-For`/`CF-Connecting-IP`. Traefik trusts
   forwarded headers from the pod network (`10.42.0.0/16`, see
@@ -450,41 +497,57 @@ What it sets up, and why:
 
 ### AdGuard Home (LAN DNS + split horizon)
 1. Open `http://192.168.50.244:3000` and run the wizard. Web UI: *all interfaces, port 3000*. DNS:
-   *all interfaces, port 53*. Port 80/443 belong to Traefik.
+   *all interfaces, port 53*. Port 80/443 belong to Traefik. (A fresh AdGuard only serves the
+   wizard on :3000; DNS starts after it, which is why its health checks probe :3000, not :53.)
 2. **Filters → DNS rewrites:** `lichnovsky.eu` → `192.168.50.244` and `*.lichnovsky.eu` →
    `192.168.50.244`. Everything, the website included, now runs on the Pi, so a wildcard is
    simplest. If you later host a subdomain elsewhere, add a more specific rewrite (or an
    exception) for it.
 3. **Upstreams:** DoH to e.g. `https://dns.quad9.net/dns-query` and
    `https://cloudflare-dns.com/dns-query`. Turn on *parallel requests* and the cache.
-4. **Router DHCP → DNS server:** `192.168.50.244` first. **Also hand out a second resolver** (e.g.
-   the router itself or 9.9.9.9). The Pi is a single point of failure: when it reboots or
+4. **Test first, then switch the house:** query AdGuard directly (e.g. `github.com`, a rewrite such
+   as `tv.lichnovsky.eu`, and a blocked ad domain like `doubleclick.net` → `0.0.0.0`).
+   **Router DHCP → DNS server:** `192.168.50.244` first. **Also hand out a second resolver** (e.g.
+   9.9.9.9). On ASUS, set *Advertise router's IP in addition to user-specified DNS* to **No**. Don't
+   point the router's own WAN DNS at the Pi (the Pi resolves through the router: a loop at boot). The Pi is a single point of failure: when it reboots or
    upgrades, the house keeps working without ad blocking. Clients may use the secondary at any
    time, so some ads can get through. Accept that trade-off, or run a second AdGuard on rpi-02 and
    keep the two in sync with [adguardhome-sync](https://github.com/bakito/adguardhome-sync).
 
 ### Tailscale (remote access at LAN speed)
-1. After the operator syncs, approve the `192.168.50.244/32` route of `lichnovsky-lan` in the
-   Tailscale admin console (or add an `autoApprovers` rule).
-2. **DNS → Nameservers → Add → Custom → `192.168.50.244`, "Restrict to domain" `lichnovsky.eu`**
-   (split DNS). Now a phone on Tailscale resolves `tv.lichnovsky.eu` to the Pi and reaches it
-   over the tailnet, with the same URL and certificate as at home.
-3. For Jellyfin/Immich away from home, keep Tailscale on (or on-demand) on the phone.
+1. After the operator syncs (stage 3), the tailnet shows `lichnovsky-k8s-operator` and
+   `lichnovsky-lan`; the `192.168.50.244/32` route is approved automatically by `autoApprovers`.
+2. Admin console → **DNS → Nameservers → Add nameserver → Custom** → `192.168.50.244`, enable
+   **Restrict to domain** → `lichnovsky.eu` (split DNS). Only `*.lichnovsky.eu` lookups go to AdGuard.
+3. **Clients:** phones accept routes automatically. **Linux ignores subnet routes by default:**
+   `sudo tailscale set --accept-routes`.
+4. **Test from a phone on mobile data** (Wi-Fi off): `https://dns.lichnovsky.eu` (the AdGuard UI) has
+   no public record, so if it loads, remote access works end to end.
+5. To give family access to Jellyfin without joining your whole tailnet, **share** the machine
+   from the admin console.
 
 ---
 
 ## 11. Phase 6: First run of each app
 
-**Vaultwarden.** Open `https://vault.lichnovsky.eu/admin` (Access, then the admin password whose
-hash you sealed). Configure SMTP (needed for invitations and 2FA recovery), invite yourself, then
-sign up via the invite. `SIGNUPS_ALLOWED=false` blocks everyone else. Turn on 2FA in the account.
+**Vaultwarden** (namespace `vaultwarden`). Open `https://vault.lichnovsky.eu/admin` (Access, then the
+admin password whose hash you sealed) → *Users → Invite* your e-mail. Without SMTP the invitation
+isn't mailed; you can register directly with that address at `https://vault.lichnovsky.eu`.
+`SIGNUPS_ALLOWED=false` blocks everyone else. Choose the **master password** there: it encrypts the
+vault and **nobody can reset it**, so write it down offline. Then turn on 2FA and keep the recovery
+code with it. Clients: Bitwarden extension/apps → *self-hosted* → `https://vault.lichnovsky.eu`.
+The web vault needs HTTPS; plain `http://` is redirected by Traefik.
 Snapshots: a CronJob runs `vaultwarden backup` (SQLite `VACUUM INTO`) at 02:30, keeping 7, and
 k8up copies them to the backup disk at 03:30.
 
-**Papra.** `https://papra.lichnovsky.eu`: create the first account (the first user is the owner).
-Data (SQLite + files) lives under `/app/app-data` on the PVC.
+**Papra** (namespace `papra`). `https://papra.lichnovsky.eu`: create the first account (the first
+user is the owner), then close registration: `AUTH_IS_REGISTRATION_ENABLED=false` in
+`apps/papra/papra.yaml` (already set in this repo). Data (SQLite + files) lives under
+`/app/app-data` on the PVC; an init step creates its `db/` and `documents/` folders, because the
+volume mount hides the ones in the image.
 
-**Immich.** `https://photos.lichnovsky.eu`: the first user becomes admin.
+**Immich** (future stage, `argocd/later/stage-5-immich/`). `https://photos.lichnovsky.eu`: the first
+user becomes admin.
 - The database is CNPG `immich-db` (Postgres 17 + VectorChord 1.1.1). `vchord` and `earthdistance`
   are created at bootstrap, so Immich never needs superuser. A CronJob `pg_dump`s it at 03:00
   (keeps 7) into the `immich-db-dumps` PVC, which k8up backs up.
@@ -496,7 +559,7 @@ Data (SQLite + files) lives under `/app/app-data` on the PVC.
 - Mobile app: server URL `https://photos.lichnovsky.eu`. At home AdGuard resolves it locally;
   away from home it goes through Cloudflare, or Tailscale for big videos.
 
-**Jellyfin.** `https://tv.lichnovsky.eu` (LAN/Tailscale).
+**Jellyfin** (namespace `tv`). `https://tv.lichnovsky.eu` (LAN/Tailscale only).
 **The Pi 5 has no hardware video encoder**, and Jellyfin has deprecated V4L2 acceleration on the
 Pi. Plan for direct play:
 - Store media as H.264 or HEVC + AAC in MP4/MKV, which almost every client plays directly.
@@ -504,10 +567,25 @@ Pi. Plan for direct play:
   *Internet streaming bitrate limit* so remote clients don't transcode just because of bitrate.
 - Expect at most one 1080p CPU transcode. For more, run Jellyfin on an Intel N100/N150 mini-PC
   (QuickSync); this manifest moves over as-is.
-- Media: put files in `/srv/media` on the Pi. The container sees it read-only at `/media`.
+- **Setup wizard:** admin user; keep *Allow remote connections* **on** (all traffic arrives via
+  Traefik, so Jellyfin can't tell local from remote anyway; the real protection is that the
+  hostname only exists on the LAN and tailnet); keep *automatic port mapping* **off**.
+- **Libraries:** Movies → `/media/movies`, Shows → `/media/shows`, Music → `/media/music`. Turn on
+  real-time monitoring and *Automatically add to collection*. Turn **off** *Save artwork into media
+  folders* and *Save metadata as NFO* (the media is mounted read-only), and **off** chapter-image
+  and trickplay extraction (they decode every video in full, hours of CPU per movie on a Pi).
+  Leave *Prefer embedded titles over filenames* off; file names are more reliable.
+- **Media layout:** `movies/Title (Year)/Title (Year).mkv` (+ `Title (Year).cs.srt`),
+  `shows/Show (Year)/Season 01/Show S01E01.mkv`. Copy from the laptop with rsync, e.g.
+  `rsync -ah --mkpath --info=progress2 file.mkv "rpi:/srv/media/movies/Title (Year)/Title (Year).mkv"`.
+  Check codecs first with `ffprobe`: H.264/AAC plays directly everywhere; HEVC 10-bit plays
+  directly in the Jellyfin **apps**, but many **browsers** can't, which forces a CPU transcode.
 
-**Website.** `https://lichnovsky.eu` shows a placeholder page until the real site exists
-(`apps/website/website.yaml`), and `www.` redirects to the apex. Build the site in its own
+**Website** (namespace `web`). `https://lichnovsky.eu` shows a placeholder page with a **live
+status widget** until the real site exists (`apps/website/website.yaml`), and `www.` redirects to the
+apex. The widget reads the public status page `home` through nginx (`/status-data/…` is proxied
+inside the cluster to Uptime Kuma: same origin, so no CORS, and `no-store`, so Cloudflare never
+caches it). Build the site in its own
 repository. To plug it in, the image only has to meet this contract:
 
 | Requirement | Why |
@@ -519,14 +597,23 @@ repository. To plug it in, the image only has to meet this contract:
 | Sends `Cache-Control` headers for assets (e.g. hashed files `max-age=31536000, immutable`) | Lets the Cloudflare Cache Rule do the heavy lifting |
 
 Then in `website.yaml`: set the new `image:`, delete the `website-placeholder` ConfigMap and the
-`content` volume/volumeMount, and push. Renovate picks up new site versions if you tag releases
+`content` volume/volumeMount, and push. To keep the status widget, copy the `/status-data/` location
+from `website-nginx` into your site's server config. Renovate picks up new site versions if you tag releases
 (or use Argo CD Image Updater to deploy every build automatically). If the site's repo or image
 is private, add an `imagePullSecrets` entry backed by a SealedSecret.
 
-**AdGuard, Uptime Kuma, Grafana.** Uptime Kuma: `UPTIME_KUMA_DB_TYPE=sqlite` skips 2.x's
-database wizard, so the first screen asks you to create the admin account. Add HTTP monitors for
-each public URL and a DNS monitor for AdGuard. Grafana: log in with the sealed `grafana-admin` credentials. The
-*Homelab* folder holds the Cloudflare Tunnel, Traefik, Argo CD, CloudNativePG and Logs dashboards.
+**Uptime Kuma** (namespace `monitoring`). `UPTIME_KUMA_DB_TYPE=sqlite` skips 2.x's database wizard,
+so the first screen creates the admin. **Do this right after deploying:** on the LAN, Access doesn't
+apply, and whoever opens it first becomes admin. Add HTTP monitors for each app and a DNS monitor
+for AdGuard, and a Discord notification. **Status Pages → New** with slug **`home`**: it's public at
+`https://status.lichnovsky.eu/status/home` (and feeds the website widget). Only what you put on the
+page is shown.
+
+**Grafana.** Get the password with
+`kubectl -n monitoring get secret grafana-admin -o jsonpath='{.data.admin-password}' | base64 -d`
+(in your own terminal), log in as `admin`, and change it under *Profile*. The *Homelab* folder holds
+the Cloudflare Tunnel, Traefik, Argo CD, CloudNativePG and Logs dashboards; *Node Exporter / Nodes*
+shows the Pi itself. Grafana 13 runs its plugins as separate processes, hence the 768 Mi limit.
 
 ---
 
@@ -534,7 +621,7 @@ each public URL and a DNS monitor for AdGuard. Grafana: log in with the sealed `
 
 ### Updates
 - **Apps and charts: Renovate.** Install the [Renovate GitHub App](https://github.com/apps/renovate)
-  on the repo. `renovate.json` groups patch updates into one weekly PR, puts major updates behind
+  on the repo (only `lichnovsky`). `renovate.json` groups patch updates into one weekly PR, puts major updates behind
   approval on the dependency dashboard, and keeps Immich server and ML on the same version.
   Merge a PR and Argo CD rolls it out. Read the release notes for Immich, CNPG and Argo CD majors.
 - **Postgres image:** update by hand. A Postgres major version needs CNPG's major-upgrade
@@ -546,7 +633,7 @@ each public URL and a DNS monitor for AdGuard. Grafana: log in with the sealed `
 - **OS:** unattended-upgrades handles security updates; reboot for kernel updates when convenient.
 
 ### Alerting (Discord) and an external heartbeat
-Alertmanager is configured in `argocd/later/stage-2-observability/10-kube-prometheus-stack.yaml`.
+Alertmanager is configured in `argocd/10-kube-prometheus-stack.yaml`.
 Its webhook URL comes from the SealedSecret `alertmanager-notify` and is read from a file, so it
 never appears in Git.
 1. **Alertmanager → Discord.** Every alert goes to your Discord channel, grouped per namespace and
@@ -559,14 +646,17 @@ never appears in Git.
    **2 failed checks in a row** (~10 min) it posts 🔴 to Discord, and 🟢 with the downtime when the
    site is back. It catches a dead Pi, a power or internet outage, and a broken tunnel. It doesn't
    catch a broken monitoring stack while the site still works; Grafana shows that. Free plan; on a
-   healthy day it makes no KV writes at all.
+   healthy day it makes no KV writes at all. Tested end to end: with cloudflared scaled to 0 (pause
+   auto-sync on `root` and `cloudflared` first, or Argo CD restores it within seconds), 🔴 arrived
+   after two checks, 🟢 after restoring with `kubectl apply -f bootstrap/root.yaml`.
 3. **Test it** after enabling stage 2:
    ```bash
    kubectl -n monitoring port-forward svc/kube-prometheus-stack-alertmanager 9093 &
    curl -XPOST localhost:9093/api/v2/alerts -H 'Content-Type: application/json' \
      -d '[{"labels":{"alertname":"TestAlert","severity":"warning","namespace":"test"}}]'
    ```
-   The alert should appear in Discord within about 30 s. The config was checked with Alertmanager's
+   The alert should appear in Discord within about 30 s. When sealing the webhook, `seal.sh` rejects
+   anything that isn't a `https://discord.com/api/webhooks/…` URL (a pasted stray `V` once broke it). The config was checked with Alertmanager's
    own `amtool check-config` (v0.34.1, the version the chart ships).
 
 ### Disk health
@@ -599,14 +689,25 @@ k3s etcd snapshots (every 12 h) ────────────┴───
 | Sealed Secrets **private key** | manual export (Phase 3 step 5) | password manager + offline | once, and after key rotation (every 30 days by default; old keys are kept) |
 | Secret values + **restic password** | printed once by `scripts/seal.sh` → password manager | password manager | when created |
 | Vaultwarden | SQLite `VACUUM INTO` snapshot → restic | SD card | daily; 7 d / 4 w / 6 m |
-| Immich database | `pg_dump -Fc` → restic | SD card | daily; 7 d / 4 w / 6 m |
+| Immich database (future stage) | `pg_dump -Fc` → restic | SD card | daily; 7 d / 4 w / 6 m |
 | Papra, Uptime Kuma, AdGuard | restic (k8up) | SD card | daily; 7 d / 4 w / 6 m; weekly `restic check` |
 | etcd (cluster state) | k3s `etcd-snapshot-schedule-cron` | SD card `/srv/backup/etcd` | every 12 h, keep 10 |
+| k3s server token (needed to restore etcd) | manual (Phase 3 step 6) | password manager | once |
 | **Not backed up (yet)** | **Immich photo library**; also Prometheus/Loki data, ML model cache, Jellyfin config, media library | - | Too big for 128 GB, or rebuildable |
 
 **Will 128 GB be enough?** Yes, now that the photo library is left out. Vaultwarden, AdGuard,
 Uptime Kuma and the Immich database dumps are megabytes, and Papra is usually a few GB. The
 built-in `NodeFilesystemSpaceFillingUp` alerts fire long before the card is full.
+
+**Details that matter:** the restic pods run as **root** (the k8up image's own UID 65532 can't read
+files the apps write with mode 0600, e.g. Vaultwarden's `rsa_key.pem` or AdGuard's config, and would
+silently skip them). Each namespace logs in to the rest-server with its own user
+(`--private-repos`). k8up records the repository URL, including that login, in its `Snapshot`
+objects; the login only reaches that namespace's (encrypted) repository.
+
+**First restore test (done):** Vaultwarden's snapshot was restored into a separate volume. The
+database copy was byte-identical to the live one, SQLite's integrity check said `ok`, and the
+0600 `rsa_key.pem` was there too.
 
 > ⚠️ **The Immich photo library has no backup yet.** The NVMe is its only copy in the homelab.
 > Until the bigger backup disk exists:
@@ -616,7 +717,7 @@ built-in `NodeFilesystemSpaceFillingUp` alerts fire long before the card is full
 >   `sudo rsync -a --exclude thumbs --exclude encoded-video /var/lib/rancher/k3s/storage/*_photos_immich-library/ /media/usb/immich/`
 >   (originals are in `upload/`, or in `library/` if you turn on Immich's storage template)
 >
-> **When the bigger disk arrives:** mount it at `/srv/backup` (Phase 1 step 9), then add the
+> **When the bigger disk arrives:** mount it at `/srv/backup` (Phase 1, host setup), then add the
 > annotation `k8up.io/backup: "true"` to the `immich-library` PVC in `apps/immich/immich.yaml`.
 > The next nightly run backs up the library. Size the disk at *library size + 20 %* for history,
 > or leave out `thumbs/` and `encoded-video/`, which Immich can regenerate.
@@ -675,7 +776,7 @@ friend's rest-server.
   ```
 - **Vaultwarden:** stop the pod, copy the chosen `db_<timestamp>.sqlite3` over `db.sqlite3` in the
   restored volume (delete `db.sqlite3-wal`/`-shm`), start it again.
-- **Whole NVMe lost:** new SSD → Phases 1-2 (**don't** wipe the SD card in step 9; just mount it) →
+- **Whole NVMe lost:** new SSD → Phases 1-2 (the host setup leaves a card labelled `backup` alone; it only mounts it) →
   `kubectl apply` the saved Sealed Secrets key **before** installing Argo CD → Phase 3 steps 1-3 →
   Argo CD rebuilds everything → restore volumes and the DB as above. With this page open, expect
   about 2 hours plus restore time.
@@ -718,6 +819,13 @@ friend's rest-server.
 | `platform` app stuck *Progressing* after bootstrap | Its SealedSecrets aren't committed yet. Run Phase 3 step 4. |
 | cloudflared pod *Running* but sites return 1033/530 | The liveness probe on `/ready` (200 only while ≥ 1 edge connection is up) restarts it. If it keeps happening, check outbound UDP 7844 (QUIC). Some ISPs/routers block it; add `--protocol http2` to the args. |
 | Pods OOM-killed while memory limits "look fine" | The memory cgroup isn't enabled. `grep memory /sys/fs/cgroup/cgroup.controllers` must match (Phase 1 step 4). |
+| AdGuard restarts every ~80 s right after deploy | A fresh AdGuard only runs its wizard on :3000; DNS on :53 starts after the wizard. Probes must check :3000 (fixed in this repo). |
+| Vaultwarden: "You are not using a secure context … Subtle Crypto API" | The page was opened over `http://`. Traefik now redirects to HTTPS; type `https://` if it ever happens again. |
+| Grafana restarts, kernel log shows `gpx_grafana-*` killed | Grafana 13's plugin processes exceeded the memory limit. The limit is 768 Mi now. |
+| Discord alerts fail: `unsupported protocol scheme "vhttps"` | A stray character was pasted into the hidden prompt. Re-seal; `seal.sh` now validates the URL. |
+| gitleaks blocks a commit on `sealed-*.yaml` | Ciphertext looks like secrets. `.gitleaks.toml` exempts only `sealed-*.yaml`; if you rename one, keep the prefix. |
+| An app is reachable at home without the Access login | By design: Access only covers the internet path. Each app needs its own login and closed sign-ups (§3). |
+| A file's changes don't show on `lichnovsky.eu` | Cloudflare's edge cache (2 h without a `Cache-Control` header). Send the header, or purge the cache in the dashboard. |
 | AdGuard CrashLoop: `bind: address already in use` | Something else on the host holds :53 (`ss -lunp`), or the wizard set the web UI to port 80, which Traefik owns. |
 | Certificate stuck `Issuing` | Cloudflare token scope must be *Zone:DNS:Edit* on `lichnovsky.eu`. cert-manager checks propagation via 1.1.1.1/9.9.9.9 on purpose, so AdGuard rewrites don't confuse it. |
 | Immich server restarts during first start | DB migrations: the startupProbe allows 5 min. Check `kubectl -n photos logs deploy/immich-server`. |
