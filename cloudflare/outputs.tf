@@ -8,7 +8,8 @@ output "tunnel_token" {
   sensitive = true
 }
 
-# Values for Porkbun's DNSSEC form (Key Tag, Algorithm, Digest Type, Digest).
+# Everything Porkbun's DNSSEC form asks for. For .eu, the registry uses keyData (the KSK itself);
+# dsData is the same key as a digest. Max Sig Life: leave empty.
 output "dnssec_ds" {
   value = {
     key_tag     = cloudflare_zone_dnssec.this.key_tag
@@ -16,5 +17,14 @@ output "dnssec_ds" {
     digest_type = cloudflare_zone_dnssec.this.digest_type
     digest      = cloudflare_zone_dnssec.this.digest
     ds_record   = cloudflare_zone_dnssec.this.ds
+  }
+}
+
+output "dnssec_keydata" {
+  value = {
+    flags      = cloudflare_zone_dnssec.this.flags # 257 = key-signing key (KSK)
+    protocol   = 3                                 # always 3 for DNSSEC
+    algorithm  = cloudflare_zone_dnssec.this.algorithm
+    public_key = cloudflare_zone_dnssec.this.public_key
   }
 }
