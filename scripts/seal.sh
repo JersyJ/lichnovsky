@@ -35,9 +35,9 @@ case ${1:-} in
     seal apps/platform/secrets/sealed-grafana-admin.yaml monitoring grafana-admin admin-user=admin "admin-password=$pw"
     echo "Grafana login: admin / $pw   (save it)" ;;
 
-  alertmanager-notify)   # Discord channel webhook URL + healthchecks.io ping URL
+  alertmanager-notify)   # Discord: channel -> Edit Channel -> Integrations -> Webhooks -> copy URL
     seal apps/platform/secrets/sealed-alertmanager-notify.yaml monitoring alertmanager-notify \
-      "discord-webhook-url=$(ask 'Discord webhook URL')" "healthchecks-url=$(ask 'healthchecks.io ping URL')" ;;
+      "discord-webhook-url=$(ask 'Discord webhook URL')" ;;
 
   tailscale-operator-oauth)  # Tailscale OAuth client, see https://tailscale.com/kb/1236/kubernetes-operator
     seal apps/platform/secrets/sealed-tailscale-operator-oauth.yaml tailscale operator-oauth \

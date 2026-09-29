@@ -208,7 +208,7 @@ five stages. The root app only syncs the files **directly** in `argocd/`. Everyt
 | Stage | What gets enabled | Before moving on |
 |---|---|---|
 | **1 Foundation** (enabled from the start) | Argo CD, Sealed Secrets, cert-manager, platform, cloudflared, website placeholder | https://lichnovsky.eu loads; wildcard cert `Ready` |
-| **2 Observability** | kube-prometheus-stack, Loki, Alloy, monitors, Discord alerts | a test alert reaches Discord; healthchecks.io is green; note the baseline RAM for a few days |
+| **2 Observability** | kube-prometheus-stack, Loki, Alloy, monitors, Discord alerts | a test alert reaches Discord; note the baseline RAM for a few days |
 | **3 Critical apps + backups** | Vaultwarden, AdGuard + Tailscale, k8up + rest-server | first nightly backup succeeds, then **do a restore test** (§13) |
 | **4 Lighter apps** | Papra, Uptime Kuma | RAM still comfortable |
 | **5 Heavy apps** | CloudNativePG + Immich, then Jellyfin | first Immich import overnight at low job concurrency; watch memory before adding Jellyfin |
@@ -251,9 +251,7 @@ ServiceMonitor lives with the stage-2 monitors), and `scripts/validate.py` enfor
    - ACME e-mail in `apps/platform/cert-manager-issuers/letsencrypt.yaml`
 5. **Discord alerts channel.** On your Discord server: create a private channel (e.g.
    `#homelab-alerts`) → Edit Channel → Integrations → Webhooks → *New Webhook* → copy the URL.
-6. **healthchecks.io** (free): a new check with *Period 5 min*, *Grace 10 min*. Copy its ping URL,
-   and under Integrations add the same Discord webhook, so that a dead Pi also reaches Discord.
-7. **Workstation tools:** `kubectl`, `kubeseal` (v0.40.x, to match the controller), `openssl`, [prek](https://github.com/j178/prek),
+6. **Workstation tools:** `kubectl`, `kubeseal` (v0.40.x, to match the controller), `openssl`, [prek](https://github.com/j178/prek),
    and OpenTofu via [tenv](https://github.com/tofuutils/tenv) (`tenv tofu install` reads
    `.opentofu-version`), `helm`, `kubeconform`. Optional: `argocd` CLI, `k9s`.
 
@@ -392,7 +390,7 @@ kubectl -n kube-system get secret -l sealedsecrets.bitnami.com/sealed-secrets-ke
 ```
 
 `scripts/seal.sh <name>` asks only for values you have to paste: the cert-manager DNS token, the
-Discord and healthchecks.io URLs, the Tailscale OAuth client, and the Vaultwarden `ADMIN_TOKEN`. That
+Discord webhook URL, the Tailscale OAuth client, and the Vaultwarden `ADMIN_TOKEN`. That
 last one is an **argon2 hash**, not a password: `docker run --rm -it vaultwarden/server:1.37.3 /vaultwarden hash`.
 Everything else is generated. The Grafana password and the **restic password** are printed once, so
 save them in your password manager right away. Run `scripts/seal.sh` without arguments for the list.
@@ -543,16 +541,20 @@ each public URL and a DNS monitor for AdGuard. Grafana: log in with the sealed `
 - **OS:** unattended-upgrades handles security updates; reboot for kernel updates when convenient.
 
 ### Alerting (Discord) and an external heartbeat
-Configured in `argocd/later/stage-2-observability/10-kube-prometheus-stack.yaml`. The webhook
-URLs come from the SealedSecret `alertmanager-notify` and are read from files, so they never
-appear in Git.
+Alertmanager is configured in `argocd/later/stage-2-observability/10-kube-prometheus-stack.yaml`.
+Its webhook URL comes from the SealedSecret `alertmanager-notify` and is read from a file, so it
+never appears in Git.
 1. **Alertmanager → Discord.** Every alert goes to your Discord channel, grouped per namespace and
    alert, with a repeat every 12 h while it keeps firing and a message when it resolves. The rules
    in `apps/monitoring/monitors` add Pi temperature, tunnel down and memory pressure alerts to the
    built-in node/pod/PVC/disk alerts.
-2. **Dead man's switch.** Prometheus's always-firing `Watchdog` alert is routed to the
-   healthchecks.io ping URL every ~2 min. When the pings **stop** (power cut, SSD death, k3s or
-   Prometheus down, ISP outage), healthchecks.io posts to the same Discord channel.
+2. **External heartbeat.** Anything on the Pi dies with the Pi, so this check runs on
+   **Cloudflare**: a Worker (`cloudflare/heartbeat.tf`, code in `cloudflare/workers/heartbeat.js`)
+   fetches `https://lichnovsky.eu/healthz` every 5 minutes, through Cloudflare like a visitor. After
+   **2 failed checks in a row** (~10 min) it posts 🔴 to Discord, and 🟢 with the downtime when the
+   site is back. It catches a dead Pi, a power or internet outage, and a broken tunnel. It doesn't
+   catch a broken monitoring stack while the site still works; Grafana shows that. Free plan; on a
+   healthy day it makes no KV writes at all.
 3. **Test it** after enabling stage 2:
    ```bash
    kubectl -n monitoring port-forward svc/kube-prometheus-stack-alertmanager 9093 &

@@ -61,11 +61,10 @@ spec:
               requests: { cpu: 10m, memory: 32Mi }
               limits: { memory: 96Mi }
             # SealedSecret `alertmanager-notify` (apps/platform/secrets), mounted at
-            # /etc/alertmanager/secrets/alertmanager-notify/. Keys: discord-webhook-url, healthchecks-url
+            # /etc/alertmanager/secrets/alertmanager-notify/. Key: discord-webhook-url
             secrets: [alertmanager-notify]
-          # Alerts go to Discord. Watchdog (always firing by design) pings healthchecks.io, which
-          # tells you on Discord when the pings STOP: Pi dead, power/ISP down, Prometheus broken.
-          # The URLs are read from files (webhook_url_file / url_file), so they never sit in Git.
+          # Alerts go to Discord. The URL is read from a file (webhook_url_file), so it never sits in Git.
+          # "Is the whole Pi down?" is answered from OUTSIDE by the heartbeat Worker (cloudflare/heartbeat.tf).
           config:
             global:
               resolve_timeout: 5m
@@ -76,13 +75,8 @@ spec:
               group_interval: 5m
               repeat_interval: 12h
               routes:
-                - receiver: heartbeat
-                  matchers: ['alertname = "Watchdog"']
-                  group_wait: 0s
-                  group_interval: 1m
-                  repeat_interval: 2m
-                - receiver: "null"
-                  matchers: ['alertname = "InfoInhibitor"']
+                - receiver: "null"   # always-firing by design; only useful for an external dead-man's switch
+                  matchers: ['alertname =~ "Watchdog|InfoInhibitor"']
             # The chart's default inhibit rules (a critical alert mutes its warning/info twins).
             inhibit_rules:
               - source_matchers: ['severity = critical']
@@ -101,10 +95,6 @@ spec:
                 discord_configs:
                   - webhook_url_file: /etc/alertmanager/secrets/alertmanager-notify/discord-webhook-url
                     send_resolved: true
-              - name: heartbeat
-                webhook_configs:
-                  - url_file: /etc/alertmanager/secrets/alertmanager-notify/healthchecks-url
-                    send_resolved: false
             templates:
               - /etc/alertmanager/config/*.tmpl
 

@@ -29,3 +29,9 @@ variable "origin_service" {
   type        = string
   default     = "http://traefik.kube-system.svc.cluster.local:80"
 }
+
+variable "discord_webhook_url" {
+  description = "Discord channel webhook the heartbeat Worker posts to. Set TF_VAR_discord_webhook_url."
+  type        = string
+  sensitive   = true
+}

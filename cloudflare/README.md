@@ -8,6 +8,7 @@ Manages everything on the Cloudflare side of lichnovsky.eu:
 | `access.tf` | Cloudflare Access (e-mail one-time PIN) for Argo CD, Grafana, Papra, Uptime Kuma, Vaultwarden `/admin` |
 | `rules.tf` | Login rate limit (Free plan: 1 rule), cache rule for the website |
 | `zone.tf` | TLS settings: Full (strict), Always Use HTTPS, TLS ≥ 1.2 |
+| `heartbeat.tf` + `workers/heartbeat.js` | Worker that checks the site every 5 min and posts to Discord when it goes down or comes back |
 | `outputs.tf` | `tunnel_token`, which `scripts/seal.sh cloudflared-token` seals for cloudflared |
 
 State: Cloudflare R2 bucket `lichnovsky-tofu-state`, **encrypted by OpenTofu before upload**
@@ -33,6 +34,8 @@ State: Cloudflare R2 bucket `lichnovsky-tofu-state`, **encrypted by OpenTofu bef
    | Zone | Zone Settings: **Edit** |
    | Zone | Zone WAF: **Edit** |
    | Zone | Cache Rules: **Edit** |
+   | Account | Workers Scripts: **Edit** |
+   | Account | Workers KV Storage: **Edit** |
 
    Account resources: your account. Zone resources: *Specific zone → lichnovsky.eu*.
 4. **Zero Trust** must be initialised once: sidebar → Zero Trust → pick a team name and the
@@ -50,6 +53,7 @@ export CLOUDFLARE_API_TOKEN=...          # OpenTofu token (3.)
 export AWS_ACCESS_KEY_ID=...             # R2 token (2.)
 export AWS_SECRET_ACCESS_KEY=...
 export TF_VAR_state_passphrase=...       # >= 16 chars, from your password manager
+export TF_VAR_discord_webhook_url=...    # Discord channel webhook for the heartbeat Worker
 
 cd cloudflare
 tofu init

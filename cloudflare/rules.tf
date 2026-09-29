@@ -26,8 +26,8 @@ resource "cloudflare_ruleset" "cache" {
   phase   = "http_request_cache_settings"
 
   rules = [{
-    description = "Website: eligible for cache, respect origin headers"
-    expression  = "(http.host eq \"${var.domain}\")"
+    description = "Website: eligible for cache, respect origin headers (never the health check)"
+    expression  = "(http.host eq \"${var.domain}\" and http.request.uri.path ne \"/healthz\")"
     action      = "set_cache_settings"
     action_parameters = {
       cache       = true
