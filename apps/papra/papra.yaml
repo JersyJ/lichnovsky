@@ -57,6 +57,9 @@ spec:
           image: ghcr.io/papra-hq/papra:26.6.2-rootless
           env:
             - { name: APP_BASE_URL, value: "https://papra.lichnovsky.eu" }
+            # Sign-ups closed: the owner account exists. Cloudflare Access doesn't apply on the LAN or
+            # tailnet, so an open registration would let anyone there create an account.
+            - { name: AUTH_IS_REGISTRATION_ENABLED, value: "false" }
             - { name: TZ, value: "Europe/Prague" }
             - name: AUTH_SECRET
               valueFrom:
