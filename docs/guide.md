@@ -716,6 +716,7 @@ friend's rest-server.
 
 | Symptom | Cause / fix |
 |---|---|
+| `argocd` app stuck: *waiting for deletion of hook … argocd-redis-secret-init* | The first `helm install` created that hook's Job/SA/Role/RoleBinding, and Argo CD won't delete objects it doesn't own. Delete them once: `kubectl -n argocd delete job,rolebinding,role,serviceaccount argocd-redis-secret-init`. The existing `argocd-redis` Secret is kept, and the next syncs are fine. |
 | `platform` app stuck *Progressing* after bootstrap | Its SealedSecrets aren't committed yet. Run Phase 3 step 4. |
 | cloudflared pod *Running* but sites return 1033/530 | The liveness probe on `/ready` (200 only while ≥ 1 edge connection is up) restarts it. If it keeps happening, check outbound UDP 7844 (QUIC). Some ISPs/routers block it; add `--protocol http2` to the args. |
 | Pods OOM-killed while memory limits "look fine" | The memory cgroup isn't enabled. `grep memory /sys/fs/cgroup/cgroup.controllers` must match (Phase 1 step 4). |
