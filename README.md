@@ -1,6 +1,6 @@
 # lichnovsky.eu
 
-The <lichnovsky.eu> homelab: k3s on a Raspberry Pi 5, deployed by Argo CD from this repository.
+The <https://lichnovsky.eu> homelab: k3s on a Raspberry Pi 5, deployed by Argo CD from this repository.
 Public apps go through Cloudflare Tunnel, private ones are reachable at home and over Tailscale.
 Nightly encrypted backups go to the Pi's SD card; alerts go to Discord.
 
