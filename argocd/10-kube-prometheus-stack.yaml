@@ -122,9 +122,11 @@ spec:
             enabled: true
             storageClassName: local-path
             size: 2Gi
+          # Grafana 13 runs its bundled plugins as separate processes (gpx_grafana-*); at 384Mi
+          # the kernel OOM-killed it under load. Measured idle ~270Mi, so 768Mi leaves headroom.
           resources:
-            requests: { cpu: 25m, memory: 128Mi }
-            limits: { memory: 384Mi }
+            requests: { cpu: 25m, memory: 256Mi }
+            limits: { memory: 768Mi }
           ingress:
             enabled: true
             ingressClassName: traefik

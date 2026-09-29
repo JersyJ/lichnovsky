@@ -33,3 +33,27 @@ resource "cloudflare_zero_trust_access_application" "admin" {
     precedence = 1
   }]
 }
+
+# Public Uptime Kuma status page: these paths bypass Access (more specific paths win over the
+# host-wide "Uptime Kuma" app above). The admin UI at / stays protected. Paths from Uptime Kuma's
+# status-page router (v2.5): the page, its JSON API, and the static files it loads.
+resource "cloudflare_zero_trust_access_policy" "public" {
+  account_id = var.account_id
+  name       = "Public (bypass)"
+  decision   = "bypass"
+  include    = [{ everyone = {} }]
+}
+
+resource "cloudflare_zero_trust_access_application" "status_page" {
+  account_id       = var.account_id
+  name             = "Uptime Kuma public status page"
+  type             = "self_hosted"
+  session_duration = "24h"
+  destinations = [for p in ["/status", "/status-page", "/api/status-page", "/assets", "/upload", "/icon.svg", "/favicon.ico"] :
+    { type = "public", uri = "status.${var.domain}${p}" }
+  ]
+  policies = [{
+    id         = cloudflare_zero_trust_access_policy.public.id
+    precedence = 1
+  }]
+}
