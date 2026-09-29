@@ -1,0 +1,65 @@
+# Builds the website image from web/ and deploys it by committing the new tag to apps/web.
+name: web
+
+on:
+  push:
+    branches: [main]
+    paths: ["web/**", ".github/workflows/web.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write   # commit the new tag
+  packages: write   # push to ghcr.io
+
+concurrency:
+  group: web
+  cancel-in-progress: false
+
+env:
+  DOCKER_METADATA_SHORT_SHA_LENGTH: 12
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: docker/setup-qemu-action@v4
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Tag sha-<commit>, plus OCI labels/annotations (source repo, revision, build time).
+      - id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ghcr.io/jersyj/lichnovsky-web
+          tags: type=sha
+
+      - uses: docker/build-push-action@v7
+        with:
+          context: web
+          platforms: linux/arm64,linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          annotations: ${{ steps.meta.outputs.annotations }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Git stays the source of truth: Argo CD deploys whatever tag is committed here.
+      - name: Deploy (commit the new tag)
+        if: hashFiles('apps/web/kustomization.yaml') != ''
+        env:
+          TAG: ${{ steps.meta.outputs.version }}
+        run: |
+          sed -i -E "s|^( *newTag:).*|\1 \"$TAG\"|" apps/web/kustomization.yaml
+          git diff --quiet && exit 0
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "web: deploy $TAG"
+          git pull --rebase
+          git push
