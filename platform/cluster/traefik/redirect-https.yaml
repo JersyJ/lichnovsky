@@ -1,9 +1,5 @@
-# http:// -> https:// for everything on Traefik's port 80 (attached to the whole `web` entrypoint in
-# helmchartconfig.yaml). Needed on the LAN/Tailscale path, where AdGuard points browsers straight at
-# Traefik; web apps like Vaultwarden refuse to run without HTTPS.
-# cloudflared ALSO reaches Traefik on port 80, but sends X-Forwarded-Proto: https (trusted from the
-# pod network). The middleware then sees the request as already-HTTPS and passes it through, so
-# public tunnel traffic is never redirected in a loop.
+# Vaultwarden needs HTTPS on the LAN path. cloudflared also uses port 80 but sends
+# X-Forwarded-Proto: https, so tunnel traffic isn't redirected (no loop).
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:

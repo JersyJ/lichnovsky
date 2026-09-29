@@ -1,34 +1,15 @@
-# Immich: server + machine learning + Valkey. Postgres is in database.yaml.
-#
-# RAM is what limits Immich on an 8 GB Pi. Upstream minimum is 6 GB for the whole host, 8 GB recommended.
-# The ML container loads models on demand and unloads them after MACHINE_LEARNING_MODEL_TTL
-# idle seconds, so it only takes ~1-1.5 GB while it's working through a job.
-# When a second Pi arrives, move immich-machine-learning there (see the nodeAffinity note).
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: immich-library
   namespace: photos
-  # NOT backed up yet: the library will outgrow the 128 GB SD backup card. When a bigger backup
-  # disk is mounted at /srv/backup, add:  annotations: { k8up.io/backup: "true" }
+  # Not backed up yet (too big for the SD card). With a bigger backup disk: k8up.io/backup: "true"
 spec:
   accessModes: ["ReadWriteOnce"]
-  storageClassName: local-path   # local-path ignores the size; the SSD's free space is the real limit
+  storageClassName: local-path   # ignores the size; the SSD's free space is the limit
   resources:
     requests:
       storage: 500Gi
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: immich-ml-cache
-  namespace: photos
-spec:
-  accessModes: ["ReadWriteOnce"]
-  storageClassName: local-path
-  resources:
-    requests:
-      storage: 10Gi
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -114,6 +95,7 @@ spec:
       containers:
         - name: immich-server
           image: ghcr.io/immich-app/immich-server:v3.2.2
+          # No machine-learning container (RAM): turn ML off in Administration -> Settings.
           env:
             - { name: TZ, value: "Europe/Prague" }
             - name: DB_URL
@@ -123,7 +105,6 @@ spec:
                   key: uri
             - { name: DB_VECTOR_EXTENSION, value: "vectorchord" }
             - { name: REDIS_HOSTNAME, value: "immich-valkey" }
-            - { name: IMMICH_MACHINE_LEARNING_URL, value: "http://immich-machine-learning:3003" }
             - { name: IMMICH_TELEMETRY_INCLUDE, value: "all" }   # Prometheus metrics on :8081/:8082
           ports:
             - { name: http, containerPort: 2283 }
@@ -166,73 +147,6 @@ spec:
     - { name: http, port: 80, targetPort: http }
     - { name: metrics-api, port: 8081, targetPort: metrics-api }
     - { name: metrics-ms, port: 8082, targetPort: metrics-ms }
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: immich-machine-learning
-  namespace: photos
-  labels:
-    app: immich-machine-learning
-spec:
-  replicas: 1
-  strategy:
-    type: Recreate
-  selector:
-    matchLabels:
-      app: immich-machine-learning
-  template:
-    metadata:
-      labels:
-        app: immich-machine-learning
-    spec:
-      # With a second Pi: prefer to run ML there and keep node 1 for stateful work.
-      # affinity:
-      #   nodeAffinity:
-      #     preferredDuringSchedulingIgnoredDuringExecution:
-      #       - weight: 100
-      #         preference:
-      #           matchExpressions:
-      #             - { key: kubernetes.io/hostname, operator: In, values: [rpi-02] }
-      containers:
-        - name: immich-machine-learning
-          # Plain tag = multi-arch CPU build. The -armnn variant is for Mali GPUs, which the Pi 5 lacks.
-          image: ghcr.io/immich-app/immich-machine-learning:v3.2.2
-          env:
-            - { name: MACHINE_LEARNING_MODEL_TTL, value: "300" }
-            - { name: MACHINE_LEARNING_WORKERS, value: "1" }
-            - { name: MACHINE_LEARNING_REQUEST_THREADS, value: "2" }   # leave 2 cores for everything else
-          ports:
-            - { name: http, containerPort: 3003 }
-          volumeMounts:
-            - { name: cache, mountPath: /cache }
-          readinessProbe:
-            httpGet: { path: /ping, port: http }
-            periodSeconds: 15
-          livenessProbe:
-            httpGet: { path: /ping, port: http }
-            initialDelaySeconds: 60
-            periodSeconds: 30
-          resources:
-            requests: { cpu: 50m, memory: 256Mi }
-            limits: { memory: 2Gi }
-          securityContext:
-            allowPrivilegeEscalation: false
-      volumes:
-        - name: cache
-          persistentVolumeClaim:
-            claimName: immich-ml-cache
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: immich-machine-learning
-  namespace: photos
-spec:
-  selector:
-    app: immich-machine-learning
-  ports:
-    - { name: http, port: 3003, targetPort: http }
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress

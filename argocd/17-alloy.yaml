@@ -1,5 +1,3 @@
-# Grafana Alloy replaces Promtail (EOL 2026-03-02). It reads pod logs through the Kubernetes API
-# (no hostPath mounts), adds namespace/pod/container/app labels, and ships them to Loki.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

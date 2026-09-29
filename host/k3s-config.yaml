@@ -1,32 +1,23 @@
-# /etc/rancher/k3s/config.yaml on node 1 (rpi-01). Write this BEFORE running the k3s installer.
-# Every key maps to a `k3s server --<key>` flag. Docs: https://docs.k3s.io/installation/configuration
-
-# Kubeconfig is root-only. Copy it to ~/.kube/config yourself (see docs/guide.md, Phase 2).
+# /etc/rancher/k3s/config.yaml, written BEFORE running the k3s installer.
 write-kubeconfig-mode: "0600"
 
-# Embedded etcd instead of the single-node SQLite datastore. It uses ~100-150 MB more RAM,
-# but it lets you add more control-plane nodes later and gives you `k3s etcd-snapshot`.
+# etcd instead of SQLite: ~150 MB more RAM, but snapshots and more control-plane nodes later.
 cluster-init: true
 etcd-snapshot-schedule-cron: "0 */12 * * *"
 etcd-snapshot-retention: 10
-# Snapshots go to the backup disk (SD card for now), not the NVMe they would protect.
+# On the backup disk, not the NVMe they protect.
 etcd-snapshot-dir: /srv/backup/etcd
 
-# Stable name and address for the node, plus the extra names the API TLS cert should cover.
 node-name: rpi-01
 node-ip: 192.168.50.244         # reserved in the router (Wi-Fi, wlan0)
 tls-san:
   - rpi-01
   - rpi-01.local
-  - k8s.lichnovsky.eu
+  - k8s.lichnovsky.eu           # kubeconfig server; resolves via AdGuard / Tailscale only
 
-# We keep Traefik and ServiceLB (Klipper) enabled on purpose:
-#  - ServiceLB publishes Traefik on the node IP :80/:443, so LAN and Tailscale clients reach apps
-#    directly, with no 100 MB Cloudflare upload cap and no Cloudflare hop for Jellyfin.
-#  - cloudflared talks to Traefik's ClusterIP inside the cluster for public traffic.
-# disable: []
+# Traefik and ServiceLB stay enabled: LAN/Tailscale clients reach Traefik on the node IP directly.
 
-# Keep a small reserve so the kubelet evicts pods before the kernel OOM-killer steps in.
+# The kubelet evicts pods before the kernel OOM killer steps in.
 kubelet-arg:
   - "system-reserved=cpu=250m,memory=384Mi"
   - "kube-reserved=cpu=250m,memory=384Mi"
@@ -34,6 +25,4 @@ kubelet-arg:
   - "container-log-max-size=10Mi"
   - "container-log-max-files=3"
 
-# Metrics for controller-manager, scheduler and etcd are left off on purpose. k3s runs them all
-# in one process, and scraping them on an 8 GB node adds many series for little value.
-# The kube-prometheus-stack values disable those scrape jobs to match.
+# Control-plane metrics stay off: many series for little value (kube-prometheus-stack skips them too).

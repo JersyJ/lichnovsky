@@ -1,5 +1,4 @@
-# Prometheus Operator + Prometheus + Alertmanager + Grafana + node-exporter + kube-state-metrics.
-# Wave -7: it installs the ServiceMonitor/PodMonitor CRDs that later apps use.
+# Wave -7: installs the ServiceMonitor/PodMonitor CRDs that later apps use.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -31,8 +30,7 @@ spec:
 
         prometheus:
           prometheusSpec:
-            # Chart defaults: 30s scrape / 10d retention. Scrape less often (RAM), keep longer (disk is
-            # cheap on the 1 TB NVMe; retention barely affects RAM).
+            # Scrape less often than the 30s default (RAM); retention costs disk, not RAM.
             scrapeInterval: 60s
             evaluationInterval: 60s
             retention: 30d
@@ -60,11 +58,8 @@ spec:
             resources:
               requests: { cpu: 10m, memory: 32Mi }
               limits: { memory: 96Mi }
-            # SealedSecret `alertmanager-notify` (platform/cluster/secrets), mounted at
-            # /etc/alertmanager/secrets/alertmanager-notify/. Key: discord-webhook-url
             secrets: [alertmanager-notify]
-          # Alerts go to Discord. The URL is read from a file (webhook_url_file), so it never sits in Git.
-          # "Is the whole Pi down?" is answered from OUTSIDE by the heartbeat Worker (cloudflare/heartbeat.tf).
+          # webhook_url_file keeps the Discord URL out of Git. "Is the Pi down?" is the heartbeat Worker's job.
           config:
             global:
               resolve_timeout: 5m
@@ -115,7 +110,7 @@ spec:
 
         grafana:
           admin:
-            existingSecret: grafana-admin      # SealedSecret in platform/cluster (wave -8)
+            existingSecret: grafana-admin
             userKey: admin-user
             passwordKey: admin-password
           persistence:
@@ -131,7 +126,6 @@ spec:
             enabled: true
             ingressClassName: traefik
             hosts: [grafana.lichnovsky.eu]
-          # Loki datasource for Alloy-shipped logs.
           additionalDataSources:
             - name: Loki
               type: loki
@@ -142,8 +136,7 @@ spec:
             dashboards:
               enabled: true
               searchNamespace: ALL   # also pick up dashboard ConfigMaps you add to any app
-          # Community dashboards, downloaded from grafana.com at pod start. IDs and revisions
-          # were checked against grafana.com in 2026-09. Bump the revision on purpose to update.
+          # Downloaded from grafana.com at pod start. Bump a revision to update that dashboard.
           dashboardProviders:
             dashboardproviders.yaml:
               apiVersion: 1

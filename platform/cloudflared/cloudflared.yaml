@@ -1,7 +1,4 @@
-# Cloudflare Tunnel connector (remotely-managed tunnel: routes are set in the Zero Trust dashboard).
-# Token: SealedSecret `cloudflared-token` (key `token`), made with scripts/seal.sh.
-# On one node, 2 replicas only survive a pod crash, not the node going down. They also give
-# 8 edge connections instead of 4. On two nodes the spread constraint puts one replica on each.
+# 2 replicas: survive a pod crash and give 8 edge connections instead of 4.
 apiVersion: apps/v1
 kind: Deployment
 metadata:

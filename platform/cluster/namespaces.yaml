@@ -1,12 +1,4 @@
-# Namespaces with Pod Security Admission levels. Every workload in this repo is written to the
-# `restricted` profile where it can be, and `warn: restricted` flags any regression. `enforce` is
-# `baseline` in namespaces with backups, because k8up's restic pods run as root there so they can
-# read every file the apps write (the k8up image's default UID 65532 can't read e.g. 0600 files).
-# https://kubernetes.io/docs/concepts/security/pod-security-standards/
-#
-# Platform namespaces keep the cluster running; app namespaces hold what you use. Uptime Kuma
-# shares `monitoring` (see above).
-#
+# warn: restricted flags regressions. enforce: baseline where k8up backs up (restic runs as root).
 # --- platform -------------------------------------------------------------------------------------
 apiVersion: v1
 kind: Namespace

@@ -1,5 +1,3 @@
-# k8up: scheduled restic backups of PVCs (Vaultwarden, Papra, Immich library, Uptime Kuma...)
-# to the restic rest-server on the backup disk. Schedules and the server live in platform/backups.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -16,9 +14,8 @@ spec:
     helm:
       valuesObject:
         k8up:
-          timezone: Europe/Prague   # CHANGEME if needed
-          # Opt-in: back up only PVCs annotated k8up.io/backup: "true". Prometheus/Loki data, the
-          # ML model cache, Jellyfin and the media library are skipped on purpose.
+          timezone: Europe/Prague
+          # Opt-in: only PVCs annotated k8up.io/backup: "true".
           skipWithoutAnnotation: true
         resources:
           requests: { cpu: 10m, memory: 32Mi }

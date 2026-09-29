@@ -1,4 +1,3 @@
-# Zone-wide TLS settings.
 locals {
   zone_settings = {
     ssl                      = "strict" # Full (strict)

@@ -1,13 +1,5 @@
-# Jellyfin, for LAN and Tailscale only (Cloudflare's CDN terms forbid proxying video from your own
-# origin, so there is deliberately NO public hostname for it in the tunnel).
-#
-# The Pi 5 has NO hardware video encoder, and Jellyfin has deprecated V4L2 acceleration on the Pi.
-# Plan for DIRECT PLAY: keep media in formats your clients can play (H.264/HEVC + AAC in MP4/MKV),
-# set a high remote bitrate limit, and treat CPU transcoding (roughly one 1080p stream at most) as a
-# fallback. For regular transcoding, run Jellyfin on an Intel N100/N150 box (QuickSync) instead.
-#
-# Media lives on the host at /srv/media (a directory on the SSD or a second disk), exposed as a
-# local PersistentVolume. That avoids hostPath, which the baseline Pod Security level blocks.
+# No public hostname: Cloudflare's terms forbid proxying video. The Pi 5 has no HW encoder, so direct play.
+# Media is a local PersistentVolume, because baseline Pod Security blocks hostPath.
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -19,7 +11,7 @@ spec:
   persistentVolumeReclaimPolicy: Retain
   storageClassName: local-media
   local:
-    path: /srv/media          # created by host/setup-pi.sh on rpi-01
+    path: /srv/media          # created by host/02-setup-pi.sh
   nodeAffinity:
     required:
       nodeSelectorTerms:
@@ -130,7 +122,6 @@ spec:
       port: 80
       targetPort: http
 ---
-# Resolves only through AdGuard (LAN) or Tailscale split DNS. It is not published in Cloudflare.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:

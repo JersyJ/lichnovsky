@@ -1,7 +1,3 @@
-# External heartbeat: a Cloudflare Worker checks the site every 5 minutes and posts to Discord when
-# it goes down or comes back. It runs on Cloudflare, not on the Pi, so it catches the Pi, its power,
-# its internet or the tunnel being gone. Code: workers/heartbeat.js. Free plan limits: well within.
-
 resource "cloudflare_workers_kv_namespace" "heartbeat" {
   account_id = var.account_id
   title      = "lichnovsky-heartbeat-state"

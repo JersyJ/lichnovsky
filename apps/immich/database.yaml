@@ -1,10 +1,4 @@
-# Postgres for Immich, run by CloudNativePG. The image is CNPG-compatible Postgres with VectorChord
-# (Immich's vector search extension; accepted range >= 0.3, < 2.0). CNPG creates the Secret
-# `immich-db-app` (keys: username, password, host, dbname, uri, ...) that immich-server reads.
-#
-# Backup: a nightly pg_dump into the `immich-db-dumps` PVC, which k8up copies to the backup disk.
-# (CNPG's Barman Cloud plugin needs S3-compatible storage. Add it back if you later get an R2/S3
-# bucket, for continuous WAL archiving and point-in-time recovery.)
+# VectorChord range Immich accepts: >= 0.3, < 2.0. CNPG creates Secret `immich-db-app` for immich-server.
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata:
@@ -48,8 +42,7 @@ spec:
     requests:
       storage: 5Gi
 ---
-# Logical dump in custom format (compressed, and pg_restore can restore selectively).
-# Runs at 03:00, before the k8up backup of the photos namespace, and keeps the last 7 dumps.
+# pg_dump instead of CNPG's Barman backups, which need S3. 03:00, before k8up; keeps 7.
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -107,8 +100,7 @@ spec:
               persistentVolumeClaim:
                 claimName: immich-db-dumps
 ---
-# Postgres metrics (cnpg_*) for the CloudNativePG dashboard. Defined here, because
-# `spec.monitoring.enablePodMonitor` is deprecated in CNPG 1.30.
+# Postgres metrics (cnpg_*) for the CloudNativePG dashboard. Replaces spec.monitoring.enablePodMonitor, deprecated in CNPG 1.30.
 apiVersion: monitoring.coreos.com/v1
 kind: PodMonitor
 metadata:
@@ -122,8 +114,7 @@ spec:
     - port: metrics
       interval: 60s
 ---
-# CloudNativePG operator metrics. The CNPG dashboard (20417) reads controller_runtime_* from it for
-# its "operator namespace" dropdown. It lives here so it only appears with CNPG (stage 5).
+# Operator metrics for the CNPG dashboard (20417); here so it only exists together with CNPG.
 apiVersion: monitoring.coreos.com/v1
 kind: PodMonitor
 metadata:

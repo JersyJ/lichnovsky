@@ -1,49 +1,43 @@
-# lichnovsky
+# lichnovsky.eu
 
-GitOps repository (github.com/JersyJ/lichnovsky) for **lichnovsky.eu**, the website and homelab: k3s on a Raspberry Pi 5,
-driven by Argo CD. Public apps go through Cloudflare Tunnel, private ones through the LAN and
-Tailscale. Nightly encrypted backups go to the Pi's SD card; alerts go to Discord.
+The <lichnovsky.eu> homelab: k3s on a Raspberry Pi 5, deployed by Argo CD from this repository.
+Public apps go through Cloudflare Tunnel, private ones are reachable at home and over Tailscale.
+Nightly encrypted backups go to the Pi's SD card; alerts go to Discord.
 
-| App | URL | Reachable from |
-|---|---|---|
-| Website | https://lichnovsky.eu (`www.` redirects) | Internet, LAN, Tailscale |
-| Vaultwarden | https://vault.lichnovsky.eu | Internet, LAN, Tailscale |
-| Immich | https://photos.lichnovsky.eu | Internet, LAN, Tailscale |
-| Papra | https://papra.lichnovsky.eu | Internet (Access), LAN, Tailscale |
-| Uptime Kuma | https://status.lichnovsky.eu | Internet (Access), LAN, Tailscale |
-| Argo CD | https://argocd.lichnovsky.eu | Internet (Access), LAN, Tailscale |
-| Grafana | https://grafana.lichnovsky.eu | Internet (Access), LAN, Tailscale |
-| Jellyfin | https://tv.lichnovsky.eu | LAN, Tailscale |
-| AdGuard Home | https://dns.lichnovsky.eu | LAN, Tailscale |
+| App | URL | Public | Cloudflare Access |
+|---|---|---|---|
+| Website (in progress: placeholder with a live status widget) | https://lichnovsky.eu (`www.` redirects) | yes | no |
+| Vaultwarden | https://vault.lichnovsky.eu | yes | only `/admin` (the whole host would break the Bitwarden apps) |
+| Papra | https://papra.lichnovsky.eu | yes | yes |
+| Uptime Kuma | https://status.lichnovsky.eu | yes | yes; the status page `/status/home` is public |
+| Argo CD | https://argocd.lichnovsky.eu | yes | yes |
+| Grafana | https://grafana.lichnovsky.eu | yes | yes |
+| Jellyfin | https://tv.lichnovsky.eu | no | – |
+| AdGuard Home | https://dns.lichnovsky.eu | no | – |
+| Immich (not deployed yet) | https://photos.lichnovsky.eu | yes | no (the apps and share links need direct access) |
 
-The website itself is built in a separate repository. Until it's ready, a placeholder page runs
-here (`apps/website`); see the image contract in the guide, §11.
+Every app is also reachable at home and over Tailscale;
+[architecture.md](docs/architecture.md#three-ways-in-one-set-of-urls) explains how.
 
-## Start here
+## Docs
 
-1. Read **[docs/guide.md](docs/guide.md)**: architecture, RAM budget, and the step-by-step build.
-2. Replace the placeholders: `grep -rn CHANGEME .`
-3. Tooling: install kubectl, helm, kubeseal, kubeconform, uv, prek and OpenTofu (via tenv); then `prek install`
-   for the git hooks.
-4. The cluster comes up in **five stages**: only `argocd/*.yaml` is deployed, and the rest waits in
-   `argocd/later/` ([how to enable a stage](argocd/later/README.md)).
+- [architecture.md](docs/architecture.md): what runs, how traffic flows, why each choice
+- [setup.md](docs/setup.md): building it from zero, in order
+- [operations.md](docs/operations.md): changes, updates, alerts, backups, restores, troubleshooting
 
 ## Layout
 
 ```
-bootstrap/   Argo CD Helm values + the root "app of apps"
-argocd/      enabled Applications (sync-wave ordered); later/ holds stages 2-5
-platform/    what keeps the cluster running (namespaces named by function: networking, monitoring, ...)
-apps/        what you use: one folder per app (= its Argo CD app name)
-cloudflare/  OpenTofu for the Cloudflare side (tunnel, DNS, Access, heartbeat Worker)
-host/        files that go on the Pi itself
-scripts/     secrets workflow + offline validation
-docs/        guide + review of the original draft
+bootstrap/    applied by hand once: Argo CD values + the root app
+argocd/       one Application per component; a file here gets deployed (later/ = not yet)
+platform/     Platform layer - namespaces, Traefik, TLS, tunnel, monitoring, backups
+apps/         Application layer
+cloudflare/   OpenTofu for the infrastructure on Cloudflare side
+host/         files for the Pi itself, numbered in run order
+scripts/      seal.sh (create secrets), validate.py (check before push)
 ```
 
-## Rules of the repo
+## Rules
 
-- **Never commit a plaintext Secret.** Create each one with `scripts/seal.sh <name>`: it writes only the
-  SealedSecret, never plaintext. A hook blocks any `kind: Secret`.
-- **Pin every version.** Renovate proposes updates as PRs.
-- **Git is the source of truth.** Anything changed with `kubectl edit` is reverted by self-heal.
+- **No plaintext secrets.** Create each secret with `scripts/seal.sh <name>`; a git hook blocks `kind: Secret`.
+- **Versions are pinned.** Renovate proposes updates as PRs.

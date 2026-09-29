@@ -8,8 +8,7 @@ terraform {
     }
   }
 
-  # State lives in the Cloudflare R2 bucket via R2's S3-compatible API (nothing here talks to AWS).
-  # Credentials are the R2 token's keys in AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY (README.md).
+  # R2 through its S3 API (not AWS). Keys: AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY.
   backend "s3" {
     bucket = "lichnovsky-tofu-state"
     key    = "cloudflare/terraform.tfstate"
@@ -26,8 +25,7 @@ terraform {
     skip_s3_checksum            = true # R2 doesn't implement the AWS checksum headers
   }
 
-  # The state contains the tunnel secret, so it's encrypted before upload, and plans too.
-  # The passphrase (>= 16 chars) comes from TF_VAR_state_passphrase and lives in your password manager.
+  # The state holds the tunnel secret, so state and plans are encrypted (TF_VAR_state_passphrase).
   encryption {
     key_provider "pbkdf2" "main" {
       passphrase = var.state_passphrase
@@ -46,5 +44,5 @@ terraform {
   }
 }
 
-# Auth: CLOUDFLARE_API_TOKEN environment variable (the "OpenTofu" token, see README.md).
+# Auth: CLOUDFLARE_API_TOKEN.
 provider "cloudflare" {}

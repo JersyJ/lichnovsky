@@ -1,5 +1,4 @@
-# The one Application you apply by hand. It syncs every Application in argocd/,
-# and those Applications deploy everything else. ("App of Apps")
+# The only manifest applied by hand. Syncs argocd/*.yaml, which deploys everything else.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

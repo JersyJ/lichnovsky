@@ -1,16 +1,5 @@
-# Backup target: restic REST server writing to the backup disk mounted on rpi-01 at /srv/backup.
-# Today that's the 128 GB SD card (a different device from the NVMe that holds the data).
-# Later, mount a bigger disk at /srv/backup instead, or point the k8up Schedules at R2/S3;
-# nothing else changes.
-#
-# Every namespace backs up into its own restic repository (/srv/backup/restic/<namespace>).
-# Three layers of protection:
-#  - restic encrypts each repository with the RESTIC_PASSWORD from that namespace's `k8up-repo`
-#    Secret, so this server only ever stores ciphertext;
-#  - --private-repos + htpasswd: the user `<namespace>` can only reach /<namespace>/ (so a
-#    compromised app can't touch another app's backups);
-#  - the NetworkPolicy below only admits the backed-up namespaces.
-# The htpasswd file is the SealedSecret `rest-server-htpasswd` (`scripts/seal.sh backups` generates it).
+# --private-repos + htpasswd: user <namespace> can only reach /<namespace>/, so a compromised app
+# can't touch another app's backups.
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -22,7 +11,7 @@ spec:
   persistentVolumeReclaimPolicy: Retain
   storageClassName: local-backup
   local:
-    path: /srv/backup/restic    # must exist and be owned by 1000:1000 (docs/guide.md, Phase 1)
+    path: /srv/backup/restic    # owned by 1000:1000 (host/02-setup-pi.sh)
   nodeAffinity:
     required:
       nodeSelectorTerms:

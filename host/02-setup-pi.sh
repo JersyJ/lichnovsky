@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Phase 1 host preparation for rpi-01 (Raspberry Pi OS Trixie, booted from NVMe).
-# Idempotent: safe to run again. Run as root:  sudo bash setup-pi.sh
+# Idempotent: safe to run again. Run as root:  sudo bash 02-setup-pi.sh
 # Reboot afterwards (the memory cgroup only takes effect after a reboot).
 set -euo pipefail
 [[ $EUID -eq 0 ]] || { echo "run with sudo"; exit 1; }

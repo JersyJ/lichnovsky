@@ -1,6 +1,4 @@
-# Let's Encrypt via DNS-01 on Cloudflare: works with no inbound port open.
-# Needs a Cloudflare API token with Zone:DNS:Edit on lichnovsky.eu, stored in the
-# SealedSecret `cloudflare-api-token` (namespace cert-manager, key `api-token`).
+# DNS-01: needs no inbound port.
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:

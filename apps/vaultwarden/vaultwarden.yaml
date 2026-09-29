@@ -1,5 +1,3 @@
-# Vaultwarden (Bitwarden-compatible server). SQLite on the local SSD.
-# Secrets: SealedSecret `vaultwarden` with key ADMIN_TOKEN (an argon2 PHC string; see docs/guide.md).
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -56,7 +54,6 @@ spec:
                 secretKeyRef:
                   name: vaultwarden
                   key: ADMIN_TOKEN
-            # WebSocket notifications run on the main port since 1.29; WEBSOCKET_ENABLED is obsolete.
           ports:
             - name: http
               containerPort: 8080
@@ -117,9 +114,8 @@ spec:
                 port:
                   number: 80
 ---
-# Consistent SQLite snapshot for k8up to pick up. A plain file copy of a live WAL-mode
-# database can be torn. `vaultwarden backup` runs `VACUUM INTO` and writes
-# /data/db_<UTC timestamp>.sqlite3. Runs 30 min before the nightly k8up backup and keeps the last 7.
+# A file copy of a live WAL-mode SQLite can be torn; `vaultwarden backup` (VACUUM INTO) is consistent.
+# Runs 30 min before k8up and keeps the last 7.
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -144,7 +140,6 @@ spec:
             fsGroup: 1000
             seccompProfile:
               type: RuntimeDefault
-          # RWO + local-path: the job must run on the same node as the volume (automatic on 1 node).
           containers:
             - name: snapshot
               image: vaultwarden/server:1.37.3

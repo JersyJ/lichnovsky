@@ -1,4 +1,3 @@
-# Cloudflare Access (Zero Trust) in front of the admin UIs. Login = one-time PIN to your e-mail.
 resource "cloudflare_zero_trust_access_policy" "owner" {
   account_id       = var.account_id
   name             = "Owner"
@@ -34,9 +33,7 @@ resource "cloudflare_zero_trust_access_application" "admin" {
   }]
 }
 
-# Public Uptime Kuma status page: these paths bypass Access (more specific paths win over the
-# host-wide "Uptime Kuma" app above). The admin UI at / stays protected. Paths from Uptime Kuma's
-# status-page router (v2.5): the page, its JSON API, and the static files it loads.
+# Public status page: these paths bypass Access
 resource "cloudflare_zero_trust_access_policy" "public" {
   account_id = var.account_id
   name       = "Public (bypass)"

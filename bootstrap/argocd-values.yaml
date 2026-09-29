@@ -1,6 +1,4 @@
-# Values for the argo-cd Helm chart (argoproj/argo-helm).
-# Used twice: once by `helm install` during bootstrap, then by argocd/00-argocd.yaml so
-# Argo CD manages itself from Git. Change it here and push; Argo CD upgrades itself.
+# Used by the bootstrap `helm install`, then by argocd/00-argocd.yaml (Argo CD manages itself).
 global:
   domain: argocd.lichnovsky.eu
 
@@ -13,9 +11,8 @@ configs:
     exec.enabled: false
     statusbadge.enabled: false
     timeout.reconciliation: 180s
-    # Resource types Argo CD doesn't watch or cache. Setting this REPLACES the chart's default list,
-    # so the defaults (argo-cd chart 10.9.2) are copied below, with our additions at the end.
-    # Re-check the defaults when upgrading the chart major version.
+    # This REPLACES the chart's default list, so the defaults (chart 10.9.2) are copied first.
+    # Re-check them on a chart major upgrade.
     resource.exclusions: |
       ### Network resources created by the control plane (excluded: fewer watched events, less UI clutter)
       - apiGroups:
@@ -71,7 +68,7 @@ configs:
         - BackgroundScanReport
         - ClusterBackgroundScanReport
         - UpdateRequest
-      ### lichnovsky.eu additions: high-churn or tool-internal resources Argo CD never manages here
+      ### additions: high-churn resources Argo CD never manages here
       - apiGroups:
         - ''
         - events.k8s.io
@@ -86,8 +83,7 @@ configs:
         - k3s.cattle.io
         kinds:
         - Addon
-    # Health check for Application resources. Without it, sync-waves in the app-of-apps don't
-    # wait: Argo CD doesn't health-check child Applications by default.
+    # Without a health check for Applications, sync waves in the app of apps don't wait.
     resource.customizations.health.argoproj.io_Application: |
       hs = {}
       hs.status = "Progressing"
@@ -102,10 +98,8 @@ configs:
       end
       return hs
 
-# Tuned down for a single 8 GB Raspberry Pi.
 controller:
-  # Go soft memory cap just under the container limit: the GC works harder instead of growing
-  # the heap until the kernel OOM-kills the pod.
+  # Soft cap under the limit: the GC works harder instead of the pod being OOM-killed.
   env:
     - name: GOMEMLIMIT
       value: "650MiB"
@@ -131,9 +125,61 @@ applicationSet:
   resources:
     requests: { cpu: 10m, memory: 32Mi }
     limits: { memory: 128Mi }
-# SSO is handled by Cloudflare Access in front of argocd.lichnovsky.eu, so Dex isn't needed.
+# Cloudflare Access does the SSO.
 dex:
   enabled: false
-# Turn this on later if you want Argo CD to post to Discord/Telegram/ntfy.
 notifications:
-  enabled: false
+  enabled: true
+  argocdUrl: https://argocd.lichnovsky.eu
+  resources:
+    requests: { cpu: 10m, memory: 32Mi }
+    limits: { memory: 128Mi }
+  secret:
+    create: false   # SealedSecret argocd-notifications-secret in platform/cluster/secrets
+  notifiers:
+    service.webhook.discord: |
+      url: $discord-webhook-url
+      headers:
+        - name: Content-Type
+          value: application/json
+  templates:
+    template.app-sync-failed: |
+      webhook:
+        discord:
+          method: POST
+          body: |
+            {"embeds": [{
+              "title": "❌ {{.app.metadata.name}}: sync failed",
+              "url": "{{.context.argocdUrl}}/applications/argocd/{{.app.metadata.name}}",
+              "color": 14427686,
+              "description": {{ toJson (.app.status.operationState.message | default "" | trunc 1500) }}
+            }]}
+    template.app-deployed: |
+      webhook:
+        discord:
+          method: POST
+          body: |
+            {"embeds": [{
+              "title": "✅ {{.app.metadata.name}}: deployed",
+              "url": "{{.context.argocdUrl}}/applications/argocd/{{.app.metadata.name}}",
+              "color": 1483594,
+              "description": "
+                {{- with .app.status.sync.revision }}{{ trunc 7 . }}
+                {{- else }}{{ range .app.status.sync.revisions }}{{ trunc 7 . }} {{ end }}{{ end -}}
+              "
+            }]}
+  triggers:
+    trigger.on-sync-failed: |
+      - when: app.status.operationState != nil and app.status.operationState.phase in ['Error', 'Failed']
+        send: [app-sync-failed]
+    # Once per finished sync, and only if recent: otherwise enabling this posts every app's last sync.
+    trigger.on-deployed: |
+      - when: >-
+          app.status.operationState != nil and app.status.operationState.phase == 'Succeeded' and
+          app.status.health.status == 'Healthy' and
+          time.Now().Sub(time.Parse(app.status.operationState.finishedAt)).Minutes() < 30
+        oncePer: app.status.operationState.finishedAt
+        send: [app-deployed]
+  subscriptions:
+    - recipients: [discord]
+      triggers: [on-sync-failed, on-deployed]

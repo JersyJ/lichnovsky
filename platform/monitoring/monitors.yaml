@@ -1,9 +1,4 @@
-# Scrape targets and alert rules that go with the platform (stage 2). Anything that needs a
-# CRD from kube-prometheus-stack lives here or in a later stage, never in a stage-1 app.
-# Dashboards are imported from grafana.com by the Grafana chart
-# (argocd/later/stage-2-observability/10-kube-prometheus-stack.yaml).
----
-# Traefik (k3s-bundled) metrics Service is enabled in platform/cluster/traefik/helmchartconfig.yaml.
+# Needs the kube-prometheus-stack CRDs, so it can't live in platform/cluster (synced earlier).
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
@@ -17,9 +12,7 @@ spec:
     - port: metrics
       interval: 60s
 ---
-# Argo CD metrics. The Argo CD dashboard (14584) needs all four components: app/sync panels come from
-# the controller, git request panels from repo-server, API panels from server. Pods are scraped
-# directly, because Argo CD (wave -10) can't create ServiceMonitors before their CRD exists.
+# Pods directly: Argo CD (wave -10) syncs before the ServiceMonitor CRD exists.
 apiVersion: monitoring.coreos.com/v1
 kind: PodMonitor
 metadata:

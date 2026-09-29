@@ -1,6 +1,4 @@
-# Git hooks, run by prek (https://github.com/j178/prek); it reads this standard pre-commit format.
-#   prek install          # installs both hook types listed below
-#   prek run --all-files  # run everything once, on demand
+# Run by prek: `prek install` once, `prek run --all-files` on demand.
 default_install_hook_types: [pre-commit, pre-push]
 
 repos:
@@ -20,12 +18,13 @@ repos:
   - repo: https://github.com/adrienverge/yamllint
     rev: v1.38.0
     hooks:
-      - id: yamllint        # uses the repo's .yamllint
+      - id: yamllint
 
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.30.1
     hooks:
-      - id: gitleaks        # API tokens, webhook URLs, keys pasted anywhere by mistake
+      - id: gitleaks                # API tokens, webhook URLs, keys pasted anywhere by mistake
+        args: [--config, .github/gitleaks.toml]
 
   - repo: local
     hooks:
@@ -42,10 +41,9 @@ repos:
         files: ^cloudflare/.*\.(tf|tfvars|hcl)$
         pass_filenames: false
 
-      # Slow (downloads charts and schemas), so it runs on push, not on every commit.
-      # Needs helm and kubeconform on PATH.
+      # Pre-push only: downloads charts and schemas. Needs helm and kubeconform.
       - id: validate-manifests
-        name: helm render + kubeconform (scripts/validate.py)
+        name: helm render + kubeconform
         entry: uv run --script scripts/validate.py
         language: system
         pass_filenames: false

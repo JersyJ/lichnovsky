@@ -1,5 +1,4 @@
-# Traefik's default certificate for every HTTPS route: the wildcard *.lichnovsky.eu from cert-manager.
-# That's why LAN and Tailscale clients get a valid cert at https://<app>.lichnovsky.eu.
+# The wildcard is the default cert, so every app has valid HTTPS on the LAN and Tailscale.
 apiVersion: traefik.io/v1alpha1
 kind: TLSStore
 metadata:

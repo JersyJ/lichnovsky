@@ -1,5 +1,3 @@
-# Remotely-managed tunnel: cloudflared in the cluster only needs the token; the routing below is
-# pushed to it by Cloudflare.
 resource "cloudflare_zero_trust_tunnel_cloudflared" "pi" {
   account_id = var.account_id
   name       = "lichnovsky-pi"

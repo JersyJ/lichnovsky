@@ -1,23 +1,5 @@
-# Nightly restic backups (k8up) of every PVC annotated k8up.io/backup: "true", sent to the
-# rest-server on the backup disk (rest-server.yaml). A k8up Schedule only covers PVCs in its own
-# namespace, so there is one per namespace, each with its own repository.
-#
-# What's included, the "most important things" (~ sizes are for a typical homelab):
-#   vaultwarden  Vaultwarden data + its nightly SQLite snapshots         (MBs)
-#   papra        Papra database + documents                             (GBs)
-#   photos       Immich database dumps only (albums, people, metadata)  (MBs-GBs)
-#   monitoring   Uptime Kuma                                            (MBs)
-#   dns          AdGuard Home config                                    (KBs)
-# Left out on purpose: the Immich PHOTO LIBRARY (too big for the SD card, so add it with the bigger
-# disk), Prometheus/Loki data, the Immich ML model cache, Jellyfin config and media.
-#
-# Secret `k8up-repo` in each namespace holds RESTIC_PASSWORD plus the rest-server login
-# REST_USER (= namespace) / REST_PASSWORD (`scripts/seal.sh backups` generates all of them).
-#
-# The restic pods run as root (podSecurityContext below): the k8up image's default UID 65532 can't
-# read files the apps create with mode 0600 (e.g. AdGuard's config), and would silently skip them.
-# LOSE THE RESTIC PASSWORD = LOSE THE BACKUPS. Keep it in your password manager AND on paper.
-#
+# One Schedule per namespace: a k8up Schedule only covers PVCs in its own namespace.
+# restic runs as root: the default UID 65532 silently skips 0600 files (e.g. AdGuard's config).
 # Times: Vaultwarden snapshot 02:30, Immich pg_dump 03:00, restic 03:30-04:10.
 ---
 apiVersion: k8up.io/v1
@@ -46,7 +28,7 @@ spec:
     failedJobsHistoryLimit: 3
     successfulJobsHistoryLimit: 1
   check:
-    schedule: "30 5 * * 0"          # weekly: restic check verifies the repository's integrity
+    schedule: "30 5 * * 0"   # weekly integrity check
   prune:
     schedule: "30 6 * * 0"
     retention:
@@ -80,7 +62,7 @@ spec:
     failedJobsHistoryLimit: 3
     successfulJobsHistoryLimit: 1
   check:
-    schedule: "40 5 * * 0"          # weekly: restic check verifies the repository's integrity
+    schedule: "40 5 * * 0"   # weekly integrity check
   prune:
     schedule: "40 6 * * 0"
     retention:
@@ -114,7 +96,7 @@ spec:
     failedJobsHistoryLimit: 3
     successfulJobsHistoryLimit: 1
   check:
-    schedule: "50 5 * * 0"          # weekly: restic check verifies the repository's integrity
+    schedule: "50 5 * * 0"   # weekly integrity check
   prune:
     schedule: "50 6 * * 0"
     retention:
@@ -148,7 +130,7 @@ spec:
     failedJobsHistoryLimit: 3
     successfulJobsHistoryLimit: 1
   check:
-    schedule: "5 5 * * 0"          # weekly: restic check verifies the repository's integrity
+    schedule: "5 5 * * 0"   # weekly integrity check
   prune:
     schedule: "5 6 * * 0"
     retention:
@@ -182,7 +164,7 @@ spec:
     failedJobsHistoryLimit: 3
     successfulJobsHistoryLimit: 1
   check:
-    schedule: "10 5 * * 0"          # weekly: restic check verifies the repository's integrity
+    schedule: "10 5 * * 0"   # weekly integrity check
   prune:
     schedule: "10 6 * * 0"
     retention:

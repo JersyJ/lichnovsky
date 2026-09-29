@@ -1,0 +1,7 @@
+[extend]
+useDefault = true
+
+# SealedSecrets are ciphertext meant to be committed, but their values trip generic-api-key.
+[[allowlists]]
+description = "SealedSecrets"
+paths = ['''(^|/)sealed-[^/]+\.ya?ml$''']

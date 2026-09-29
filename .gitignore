@@ -1,20 +1,10 @@
-# Old plaintext secret drafts (no longer used; scripts/seal.sh writes nothing to disk).
-.secrets/
-
 # Sealed Secrets controller key backups
 *.key
 sealed-secrets-key*.yaml
 
-# Local tooling
-.bin/
-*.tgz
-.DS_Store
-
-# OpenTofu (the lock file IS committed; state lives encrypted in R2)
+# OpenTofu (the lock file is committed; state lives encrypted in R2)
 .terraform/
 *.tfstate
 *.tfstate.*
 *.tfplan
-cloudflare/plan
-cloudflare/plan.txt
 crash.log

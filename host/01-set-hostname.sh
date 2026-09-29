@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Rename the Pi through cloud-init (default: rpi-01). Run BEFORE installing k3s, then reboot.
-# Usage: sudo bash set-hostname.sh [name]
+# Usage: sudo bash 01-set-hostname.sh [name]
 #
 # Raspberry Pi Imager (Trixie) sets the hostname via cloud-init (NoCloud seed in /boot/firmware).
 # cloud-init re-applies `hostname:` and /etc/hosts on every boot (update_hostname and

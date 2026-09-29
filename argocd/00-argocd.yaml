@@ -1,4 +1,4 @@
-# Argo CD manages its own upgrades. The chart version is pinned here; values come from bootstrap/.
+# Argo CD manages itself; values in bootstrap/argocd-values.yaml.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

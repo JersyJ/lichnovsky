@@ -1,10 +1,4 @@
-# lichnovsky.eu website, served from the Pi and published through the Cloudflare Tunnel.
-#
-# For now: a placeholder page with the LIVE STATUS of the public services, served by unprivileged
-# nginx from the ConfigMaps below. When the real site is ready (built in its own repo), replace the
-# image with yours and drop the placeholder ConfigMap. The contract the site's image has to meet is
-# in docs/guide.md §11 "Website": linux/arm64, non-root, listens on :8080, serves / and /healthz.
-# To keep the status widget, keep the /status-data/ proxy from website-nginx in your own server.
+# Placeholder until the real site exists (own repo): unprivileged nginx, :8080, /healthz.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -17,7 +11,7 @@ data:
         server_name _;
         root /usr/share/nginx/html;
 
-        # Page: short cache, so edits show up within a minute (Cloudflare respects this header).
+        # Short cache, so edits show up within a minute (Cloudflare honours it).
         location = / {
             try_files /index.html =404;
             add_header Cache-Control "public, max-age=60" always;
@@ -27,9 +21,7 @@ data:
             add_header Cache-Control "no-store" always;
         }
 
-        # Status widget data: the public Uptime Kuma status page "home", fetched inside the cluster.
-        # Same origin for the browser (no CORS), and exactly what status.lichnovsky.eu/status/home
-        # already shows publicly. Only GET, only these two URLs, never cached.
+        # Status widget: Uptime Kuma's already-public status page "home", same origin (no CORS).
         location ~ ^/status-data/(home|heartbeat/home)$ {
             limit_except GET { deny all; }
             rewrite ^/status-data/(.*)$ /api/status-page/$1 break;
@@ -137,7 +129,7 @@ metadata:
   labels:
     app: website
 spec:
-  replicas: 2                      # rolling updates without downtime; each pod is ~5 MB
+  replicas: 2                      # rolling updates without downtime
   selector:
     matchLabels:
       app: website
@@ -232,8 +224,7 @@ spec:
                 port:
                   number: 80
 ---
-# www.lichnovsky.eu -> https://lichnovsky.eu (301). This runs in Traefik, so it works for both
-# Cloudflare and LAN visitors.
+# www -> apex (301) in Traefik, so it works on the LAN too.
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:

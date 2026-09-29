@@ -1,5 +1,3 @@
-# Loki in single-binary mode on the local SSD. Grafana queries it through the "Loki" datasource.
-# (The old `loki-stack` chart and Promtail are deprecated. Promtail reached EOL on 2026-03-02.)
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

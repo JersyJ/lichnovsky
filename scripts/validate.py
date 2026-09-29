@@ -3,72 +3,33 @@
 # requires-python = ">=3.11"
 # dependencies = ["pyyaml>=6"]
 # ///
-"""Offline check of the whole repo before you push.
+"""Offline check of the repo before pushing.
 
-1. Every Helm-based Argo CD Application in argocd/ (including the not-yet-enabled stages in
-   argocd/later/) is rendered with `helm template`, using the
-   exact chart version and values it declares. Charts that ship a values.schema.json reject
-   unknown keys; for the others, spot-check the rendered output.
-2. The rendered output plus all plain manifests in apps/, platform/, argocd/ and bootstrap/ go through
-   kubeconform. CRDs are checked against the Datree CRDs-catalog schemas.
-3. Stage check: every custom resource used by an *enabled* app (argocd/*.yaml) must have its CRD
-   provided by an enabled chart or by k3s itself. Otherwise the sync fails until a later stage
-   is turned on.
+1. Render every Helm-based Application in argocd/ (including argocd/later/) with its pinned chart
+   version and values.
+2. Run kubeconform over the rendered output and all plain manifests (CRDs via the Datree catalog).
+3. Stage check: every custom resource in an enabled app (argocd/*.yaml) needs its CRD from an
+   enabled chart or from k3s, otherwise the sync fails.
 
-Needs: uv (fetches Python + PyYAML itself, from the block above), helm and kubeconform on PATH.
-Usage: scripts/validate.py [--k8s-version 1.36.0]
+Charts and schemas are cached in ~/.cache/lichnovsky, so repeat runs are fast.
+Needs helm and kubeconform. Run it with `prek run validate-manifests --hook-stage pre-push`.
 """
 import argparse
+import os
 import pathlib
 import subprocess
 import sys
 import tempfile
+from concurrent.futures import ThreadPoolExecutor
 
 import yaml
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-
-# PyYAML reads a bare `=` (e.g. `- =` in the Prometheus Operator CRDs' enums) as the obscure
-# YAML "value" tag and can't construct it. Kubernetes treats it as the string "=", so do the same.
-yaml.SafeLoader.add_constructor("tag:yaml.org,2002:value", lambda loader, node: loader.construct_scalar(node))
+CACHE = pathlib.Path(os.environ.get("XDG_CACHE_HOME", pathlib.Path.home() / ".cache")) / "lichnovsky"
 SCHEMAS = [
     "default",
     "https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json",
 ]
-
-
-def run(cmd, **kw):
-    return subprocess.run(cmd, check=True, text=True, capture_output=True, **kw)
-
-
-def helm_sources(app):
-    spec = app["spec"]
-    for src in spec.get("sources") or [spec.get("source")]:
-        if src and src.get("chart"):
-            yield src
-
-
-def render(app, src, workdir):
-    name = app["metadata"]["name"]
-    helm = src.get("helm", {})
-    args = [
-        "helm", "template", helm.get("releaseName", name), src["chart"],
-        "--repo", src["repoURL"], "--version", src["targetRevision"],
-        "--namespace", app["spec"]["destination"]["namespace"],
-        "--include-crds",
-    ]
-    for vf in helm.get("valueFiles", []):
-        args += ["-f", str(ROOT / vf.replace("$values/", ""))]
-    if "valuesObject" in helm:
-        vals = workdir / f"{name}-values.yaml"
-        vals.write_text(yaml.safe_dump(helm["valuesObject"]))
-        args += ["-f", str(vals)]
-    out = run(args).stdout
-    dest = workdir / f"{name}.rendered.yaml"
-    dest.write_text(out)
-    return dest
-
-
 BUILTIN_GROUPS = {
     "", "apps", "batch", "policy", "networking.k8s.io", "rbac.authorization.k8s.io",
     "storage.k8s.io", "apiextensions.k8s.io", "admissionregistration.k8s.io", "autoscaling",
@@ -77,21 +38,52 @@ BUILTIN_GROUPS = {
     "helm.cattle.io", "k3s.cattle.io", "traefik.io", "traefik.containo.us",
 }
 
+Loader = getattr(yaml, "CSafeLoader", yaml.SafeLoader)  # libyaml: much faster on the big CRDs
+# The Prometheus Operator CRDs contain a bare `=`, which PyYAML reads as the YAML "value" tag.
+Loader.add_constructor("tag:yaml.org,2002:value", lambda loader, node: loader.construct_scalar(node))
+
+
+def run(cmd):
+    return subprocess.run(cmd, check=True, text=True, capture_output=True).stdout
+
 
 def docs(path):
-    return [d for d in yaml.safe_load_all(pathlib.Path(path).read_text()) if isinstance(d, dict)]
+    return [d for d in yaml.load_all(pathlib.Path(path).read_text(), Loader) if isinstance(d, dict)]
+
+
+def chart(src):
+    """Local .tgz of the chart, downloaded once."""
+    dest = CACHE / "charts" / f"{src['chart']}-{src['targetRevision']}"
+    if not any(dest.glob("*.tgz")):
+        dest.mkdir(parents=True, exist_ok=True)
+        run(["helm", "pull", src["chart"], "--repo", src["repoURL"], "--version", src["targetRevision"],
+             "-d", str(dest)])
+    return next(dest.glob("*.tgz"))
+
+
+def render(job, workdir):
+    f, app, src = job
+    name = app["metadata"]["name"]
+    helm = src.get("helm", {})
+    args = ["helm", "template", helm.get("releaseName", name), str(chart(src)),
+            "--namespace", app["spec"]["destination"]["namespace"], "--include-crds"]
+    for vf in helm.get("valueFiles", []):
+        args += ["-f", str(ROOT / vf.replace("$values/", ""))]
+    if "valuesObject" in helm:
+        vals = workdir / f"{name}-values.yaml"
+        vals.write_text(yaml.safe_dump(helm["valuesObject"]))
+        args += ["-f", str(vals)]
+    out = workdir / f"{name}.rendered.yaml"
+    out.write_text(run(args))
+    return out
 
 
 def stage_check(rendered_enabled):
-    provided = set()
-    for f in rendered_enabled:
-        for d in docs(f):
-            if d.get("kind") == "CustomResourceDefinition":
-                provided.add((d["spec"]["group"], d["spec"]["names"]["kind"]))
+    provided = {(d["spec"]["group"], d["spec"]["names"]["kind"])
+                for f in rendered_enabled for d in docs(f) if d.get("kind") == "CustomResourceDefinition"}
     problems = []
     for f in sorted((ROOT / "argocd").glob("*.yaml")):
-        app = yaml.safe_load(f.read_text())
-        src = app["spec"].get("source") or {}
+        src = yaml.safe_load(f.read_text())["spec"].get("source") or {}
         if not src.get("path"):
             continue
         base = ROOT / src["path"]
@@ -110,27 +102,36 @@ def main():
     ap.add_argument("--k8s-version", default="1.36.0")
     opts = ap.parse_args()
 
+    jobs = []
+    for f in sorted((ROOT / "argocd").rglob("*.yaml")):
+        app = yaml.safe_load(f.read_text())
+        spec = app["spec"]
+        jobs += [(f, app, s) for s in spec.get("sources") or [spec.get("source")] if s and s.get("chart")]
+
     failed = False
-    with tempfile.TemporaryDirectory() as tmp:
+    with tempfile.TemporaryDirectory() as tmp, ThreadPoolExecutor() as pool:
         workdir = pathlib.Path(tmp)
         rendered, rendered_enabled = [], []
-        for f in sorted((ROOT / "argocd").rglob("*.yaml")):
-            app = yaml.safe_load(f.read_text())
-            for src in helm_sources(app):
-                try:
-                    out = render(app, src, workdir)
-                    rendered.append(out)
-                    if f.parent == ROOT / "argocd":
-                        rendered_enabled.append(out)
-                    print(f"helm ok    {f.relative_to(ROOT)} ({src['chart']} {src['targetRevision']})")
-                except subprocess.CalledProcessError as e:
-                    failed = True
-                    print(f"helm FAIL  {f.relative_to(ROOT)}\n{e.stderr}")
+        futures = [pool.submit(render, job, workdir) for job in jobs]
+        for (f, _, src), fut in zip(jobs, futures):
+            label = f"{f.relative_to(ROOT)} ({src['chart']} {src['targetRevision']})"
+            try:
+                out = fut.result()
+            except subprocess.CalledProcessError as e:
+                failed = True
+                print(f"helm FAIL  {label}\n{e.stderr}")
+                continue
+            print(f"helm ok    {label}")
+            rendered.append(out)
+            if f.parent == ROOT / "argocd":
+                rendered_enabled.append(out)
 
         plain = [str(p) for d in ("apps", "platform", "argocd", "bootstrap") for p in (ROOT / d).rglob("*.yaml")
                  if p.name != "argocd-values.yaml"]
-        cmd = ["kubeconform", "-strict", "-summary", "-output", "text",
-               "-kubernetes-version", opts.k8s_version, "-ignore-missing-schemas"]
+        schema_cache = CACHE / "kubeconform"
+        schema_cache.mkdir(parents=True, exist_ok=True)
+        cmd = ["kubeconform", "-strict", "-summary", "-output", "text", "-n", str(os.cpu_count() or 4),
+               "-cache", str(schema_cache), "-kubernetes-version", opts.k8s_version, "-ignore-missing-schemas"]
         for s in SCHEMAS:
             cmd += ["-schema-location", s]
         res = subprocess.run(cmd + plain + [str(r) for r in rendered], text=True, capture_output=True)
@@ -142,9 +143,8 @@ def main():
         problems = stage_check(rendered_enabled)
         for p in problems:
             print(f"stage FAIL {p}")
-        if problems:
-            failed = True
-        else:
+        failed |= bool(problems)
+        if not problems:
             print("stage ok   every custom resource in enabled apps has its CRD installed")
 
     sys.exit(1 if failed else 0)

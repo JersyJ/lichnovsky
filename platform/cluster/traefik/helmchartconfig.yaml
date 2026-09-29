@@ -1,5 +1,3 @@
-# Customises the Traefik that k3s ships (Traefik v3). k3s's helm-controller merges these values in.
-# https://docs.k3s.io/helm#customizing-packaged-components-with-helmchartconfig
 apiVersion: helm.cattle.io/v1
 kind: HelmChartConfig
 metadata:

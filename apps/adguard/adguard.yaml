@@ -1,13 +1,5 @@
-# AdGuard Home: the LAN's DNS server, plus split-horizon DNS for *.lichnovsky.eu.
-# hostNetwork keeps the real client IPs, so per-device stats and rules work (a ServiceLB/NodePort
-# would SNAT them). Pinned to rpi-01 because the router hands out that IP as the DNS server.
-#
-# First start: open http://192.168.50.244:3000 for the setup wizard.
-#   - Admin web interface: all interfaces, port 3000 (80/443 belong to Traefik via ServiceLB)
-#   - DNS server: all interfaces, port 53
-# Then in Filters -> DNS rewrites, point the whole domain at the Pi (the website runs here too):
-#   lichnovsky.eu -> 192.168.50.244   and   *.lichnovsky.eu -> 192.168.50.244
-# LAN clients now hit Traefik directly (no Cloudflare hop, no 100 MB upload limit).
+# hostNetwork: AdGuard sees real client IPs (a Service would SNAT them). Pinned to rpi-01, the IP
+# the router hands out as DNS.
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -68,8 +60,7 @@ spec:
           volumeMounts:
             - { name: conf, mountPath: /opt/adguardhome/conf }
             - { name: work, mountPath: /opt/adguardhome/work }
-          # Probe the web UI (:3000), not DNS (:53): a fresh AdGuard only runs its setup wizard on
-          # :3000 and starts DNS after the wizard is done. Probing :53 would restart it forever.
+          # Probe :3000, not :53: DNS only starts after the setup wizard is done.
           readinessProbe:
             tcpSocket:
               port: 3000
@@ -108,7 +99,6 @@ spec:
       port: 80
       targetPort: 3000
 ---
-# LAN/Tailscale only: no public hostname exists for this in Cloudflare.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
