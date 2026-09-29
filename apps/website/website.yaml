@@ -35,6 +35,7 @@ data:
             rewrite ^/status-data/(.*)$ /api/status-page/$1 break;
             proxy_pass http://uptime-kuma.monitoring.svc.cluster.local;
             proxy_hide_header Set-Cookie;
+            proxy_hide_header Cache-Control;   # Uptime Kuma sends no-cache; ours below is the one that counts
             proxy_connect_timeout 3s;
             proxy_read_timeout 5s;
             add_header Cache-Control "no-store" always;
@@ -146,7 +147,7 @@ spec:
         app: website
       annotations:
         # Bump when website-nginx changes: nginx only reads its config at start.
-        website.lichnovsky.eu/nginx-config-rev: "1"
+        website.lichnovsky.eu/nginx-config-rev: "2"
     spec:
       securityContext:
         runAsNonRoot: true
