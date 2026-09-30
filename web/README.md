@@ -1,56 +1,34 @@
 # web/
 
-The lichnovsky.eu website: an [Astro](https://docs.astro.build) static site, served by unprivileged
-nginx on the Pi. The Kubernetes side is in [apps/web](../apps/web).
-
-## Develop
+The lichnovsky.eu start page: an [Astro](https://docs.astro.build) static site served by nginx.
+Kubernetes side: [apps/web](../apps/web).
 
 ```bash
-cd web
 npm install
-npm run dev        # http://localhost:4321, reloads on save
-npm run build      # static files in dist/, exactly what gets deployed
+npm run dev      # http://localhost:4321, live status dots included
+npm run build    # dist/, exactly what gets deployed
 ```
-In `npm run dev`, the station dots show live data: `/status-data/…` is proxied to the public
-status page (`astro.config.mjs`).
 
-| Path | What |
-|---|---|
-| `src/data/services.ts` | the stations on the map: name, URL, line (Apps / Admin), access, status monitor |
-| `src/pages/` | one file per URL (`index.astro` → `/`, `404.astro` → the not-found page) |
-| `src/layouts/Base.astro` | the HTML shell, fonts (Overpass, self-hosted) and the colour tokens (light, and dark following the system) |
-| `src/components/` | `Map` (the network map on wide screens), `Strip` (the same map as a vertical line on phones), `Status` (live status line and station dots) |
-| `public/` | files copied as-is (`favicon.svg`) |
-| `nginx.conf` | how the image serves the site: cache headers, `/healthz`, the `/status-data/` proxy |
-| `Dockerfile` | builds the site, then copies it into the slim unprivileged nginx image and checks the config |
+## Adding a service
 
-**Adding a service:** one entry in the right line in `src/data/services.ts`; the map spaces the
-stations itself. Set `access` (`public`, `sign-in` for Cloudflare Access, `private` for home and
-Tailscale only). For a live status dot, set `monitor` to the monitor's name on the public status page
-`home` in Uptime Kuma (and add the monitor to that page). `planned: true` draws a station that isn't
-open yet.
+One entry in `src/data/services.ts`, on the Apps or Admin line:
+
+- `access`: `public`, `sign-in` (Cloudflare Access) or `private` (home and Tailscale only)
+- `monitor`: its name on the Uptime Kuma status page `home`, for a live dot
+- `planned: true`: shown as not open yet
 
 ## Deploy
 
-Push to `main`. When anything in `web/` changed, GitHub Actions (`.github/workflows/web.yml`):
-1. builds the image for arm64 and amd64 and pushes it to `ghcr.io/jersyj/lichnovsky-web:sha-<commit>`,
-2. commits that tag into `apps/web/kustomization.yaml` as `github-actions[bot]`,
-3. Argo CD rolls it out within ~3 minutes (two pods, one at a time, no downtime).
+Push to `main`. CI builds `ghcr.io/jersyj/lichnovsky-web:sha-<commit>`, commits the tag to
+`apps/web/kustomization.yaml`, and Argo CD rolls it out. Then `git pull --rebase` before your next
+push. To roll back, set `newTag` to an earlier tag.
 
-The bot's commit means your local `main` is one commit behind: `git pull --rebase` before the next push.
+## Keep in mind
 
-**Rolling back:** set `newTag` in `apps/web/kustomization.yaml` to an earlier `sha-…` tag and push.
-
-## Rules the image has to keep
-
-- Listen on **8080** as non-root, with a read-only root filesystem (only `/tmp` is writable): the
-  `web` namespace enforces the `restricted` Pod Security profile.
-- `GET /healthz` returns 200: the probes and the external heartbeat use it.
-- Send `Cache-Control` headers: Cloudflare caches the site by them, and would cache a page for 2 hours
-  without one. `nginx.conf` does this: hashed assets in `/_astro/` forever, pages for 60 s.
-- Keep the Content-Security-Policy working: Astro writes script and style hashes into each page
-  (`security.csp` in `astro.config.mjs`), so no inline `style="…"` attributes and no external
-  scripts, styles or fonts. nginx adds `frame-ancestors` and the other security headers.
-- The status proxy resolves Uptime Kuma per request via the cluster DNS (`10.43.0.10`, the k3s
-  default): nginx starts even when that name doesn't resolve. Change `resolver` if the cluster's
-  service CIDR ever changes.
+- The image runs as non-root on port 8080 with a read-only filesystem (`/tmp` only) and answers
+  `GET /healthz`.
+- `nginx.conf` sets `Cache-Control` (Cloudflare caches by it) and the security headers.
+- Astro adds a Content-Security-Policy with hashes of the page's inline code: no inline `style="…"`
+  attributes, and nothing loaded from other sites.
+- The status proxy looks up Uptime Kuma through the k3s DNS at `10.43.0.10` (`resolver` in
+  `nginx.conf`).
