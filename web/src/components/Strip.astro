@@ -118,10 +118,15 @@ let order = 0;
   .line[data-line="apps"] { --c: var(--apps); }
   .line[data-line="admin"] { --c: var(--admin-text); }
 
+  /* A stop is as wide as its ring and text, so a tap in the empty space beside it counts as
+     "elsewhere" and clears the selection. */
   .row {
     position: relative;
     z-index: 1;
     display: flex;
+    width: fit-content;
+    max-width: 100%;
+    padding-right: 1rem;
     align-items: center;
     min-height: 3.75rem;
     padding: 0.55rem 0 0.55rem 76px;
