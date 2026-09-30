@@ -43,3 +43,7 @@ scripts/      seal.sh (create secrets), validate.py (check before push)
 
 - **No plaintext secrets.** Create each secret with `scripts/seal.sh <name>`; a git hook blocks `kind: Secret`.
 - **Versions are pinned.** Renovate proposes updates as PRs.
+
+## License
+
+[MIT](LICENSE)
