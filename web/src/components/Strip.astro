@@ -1,0 +1,181 @@
+---
+// The network map on narrow screens: the in-carriage version of Map.astro. The ways in join at the
+// Pi, then the Apps and Admin lines run down the left edge with a stop per service. No hosts here:
+// there is no pointer to reveal them with.
+import { lines, stationLabel as label } from "../data/services";
+
+
+let order = 0;
+---
+<section class="strip" aria-label="Network map of lichnovsky.eu">
+  <svg class="ways" width="100%" height="200" aria-hidden="true">
+    <path class="l tunnel" d="M24 14 V150" />
+    <path class="l home" d="M44 58 V150" />
+    <path class="l tailscale" d="M64 102 V150" />
+    <path class="l apps" d="M24 170 V200" />
+    <path class="l admin" d="M44 170 V200" />
+    <rect class="term tunnel" x="12" y="10" width="24" height="8" />
+    <rect class="term home" x="32" y="54" width="24" height="8" />
+    <rect class="term tailscale" x="52" y="98" width="24" height="8" />
+    <text class="n" x="90" y="20">Internet</text>
+    <text class="s" x="90" y="38">via Cloudflare Tunnel</text>
+    <text class="n" x="90" y="64">Home LAN</text>
+    <text class="s" x="90" y="82">straight to the Pi</text>
+    <text class="n" x="90" y="108">Anywhere</text>
+    <text class="s" x="90" y="126">over Tailscale</text>
+    <rect class="pi" x="10" y="146" width="68" height="28" rx="14" />
+    <text class="n big" x="90" y="164">rpi-01</text>
+    <text class="s" x="90" y="182">Raspberry Pi 5, k3s, Traefik</text>
+  </svg>
+
+  {lines.map((line) => (
+    <ol class="line" data-line={line.id} aria-label={`${line.name} line`}>
+      <li class="name"><span>{line.name}</span></li>
+      {line.services.map((s) => {
+        const i = order++;
+        const inner = (
+          <>
+            <span class="ring" aria-hidden="true"><span class="dot"></span></span>
+            <span class="text">
+              <span class="st">{s.name}</span>
+              <span class="desc">{s.description}</span>
+              {s.access === "sign-in" && !s.planned && <span class="tag" aria-hidden="true">sign-in<span class="req">*</span></span>}
+              {s.planned && <span class="note">opening soon</span>}
+              {s.self && <span class="here">You are here</span>}
+            </span>
+          </>
+        );
+        return (
+          <li class="stop" data-access={s.access} data-planned={s.planned ? "" : undefined} style={`--i: ${i}`}>
+            {s.planned
+              ? <div class="row" aria-label={label(s)}>{inner}</div>
+              : <a class="row" href={s.url} data-monitor={s.monitor} data-self={s.self ? "" : undefined}
+                   data-label={label(s)} aria-label={label(s)}>{inner}</a>}
+          </li>
+        );
+      })}
+    </ol>
+  ))}
+</section>
+
+<style>
+  .strip { --rail: 8px; --a: 24px; --b: 44px; }
+  .ways { display: block; overflow: visible; }
+  .l { fill: none; stroke-width: 8; }
+  .tunnel { stroke: var(--tunnel); fill: var(--tunnel); }
+  .home { stroke: var(--home); fill: var(--home); }
+  .tailscale { stroke: var(--tailscale); fill: var(--tailscale); }
+  .apps { stroke: var(--apps); }
+  .admin { stroke: var(--admin); }
+  .term { stroke: none; }
+  .pi { fill: var(--ground); stroke: var(--ink); stroke-width: 4; }
+  text { fill: var(--ink); font-family: var(--sans); }
+  .n { font-size: 16px; font-weight: 700; }
+  .n.big { font-size: 18px; font-weight: 800; }
+  .s { fill: var(--ink-soft); font-size: 13.5px; }
+
+  ol { margin: 0; padding: 0; list-style: none; }
+  li { position: relative; }
+  /* Rails: Apps on the first track, Admin on the second. The Admin rail runs alongside the Apps
+     stops (it leaves the Pi at the same time) and carries its own stops below them. */
+  li::before, li::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: var(--rail);
+  }
+  li::before { left: calc(var(--a) - var(--rail) / 2); }
+  li::after { left: calc(var(--b) - var(--rail) / 2); background: var(--admin); }
+  .line[data-line="apps"] li::before { background: var(--apps); }
+  .line[data-line="apps"] li.stop:last-child::before { bottom: 50%; }
+  .line[data-line="apps"] li[data-planned]::before {
+    background: repeating-linear-gradient(var(--apps) 0 8px, transparent 8px 14px);
+    opacity: 0.55;
+  }
+  @media (prefers-color-scheme: dark) { .line[data-line="apps"] li[data-planned]::before { opacity: 0.9; } }
+  .line[data-line="admin"] li::before { display: none; }
+  .line[data-line="admin"] li.stop:last-child::after { bottom: 50%; }
+  .line[data-line="apps"] { --at: var(--a); }
+  .line[data-line="admin"] { --at: var(--b); }
+
+  .name { padding: 1.1rem 0 0.35rem 76px; }
+  .name span {
+    display: inline-block;
+    padding: 0.1rem 0.55rem 0;
+    border-radius: 4px;
+    background: var(--c);
+    color: #fff;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+  .line[data-line="apps"] { --c: var(--apps); }
+  .line[data-line="admin"] { --c: var(--admin-text); }
+
+  .row {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    min-height: 3.75rem;
+    padding: 0.55rem 0 0.55rem 76px;
+    color: inherit;
+    text-decoration: none;
+  }
+  .ring {
+    position: absolute;
+    left: calc(var(--at) - 12px);
+    top: 50%;
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    margin-top: -12px;
+    border: 4px solid var(--ink);
+    border-radius: 50%;
+    background: var(--ground);
+  }
+  .stop[data-access="private"] .ring { border-color: var(--tailscale); }
+  .stop[data-planned] .ring { border-style: dashed; border-color: var(--ink-faint); }
+  .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--ink-faint);
+    opacity: 0.35;
+    transition: background-color 0.4s, opacity 0.4s;
+    transition-delay: calc(var(--i) * 70ms);
+  }
+  .stop[data-planned] .dot { display: none; }
+  [data-state] .dot { opacity: 1; }
+  [data-state="up"] .dot, [data-self] .dot { background: var(--up); opacity: 1; }
+  [data-state="down"] .dot { background: var(--down); }
+  [data-state="wait"] .dot { background: var(--wait); }
+
+  .text { display: grid; gap: 0.05rem; min-width: 0; }
+  .st { font-size: 1.0625rem; font-weight: 700; line-height: 1.3; }
+  .desc { color: var(--ink-soft); font-size: 0.9375rem; line-height: 1.35; }
+  .tag, .here {
+    justify-self: start;
+    margin-top: 0.3rem;
+    padding: 0.1rem 0.55rem 0;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1.4;
+  }
+  /* Sign-in: an outlined tag; the asterisk reads as "required", like on a form. */
+  .tag { border: 1.5px solid var(--ink-faint); color: var(--ink-soft); font-weight: 600; }
+  .req { color: var(--tunnel-text); font-weight: 800; }
+  .here { background: var(--ink); color: var(--ground); letter-spacing: 0.04em; text-transform: uppercase; }
+  .note { color: var(--ink-faint); font-size: 0.84375rem; font-weight: 600; line-height: 1.35; }
+  .stop[data-planned] .st { color: var(--ink-faint); }
+  a.row:hover .st, a.row:focus-visible .st {
+    text-decoration: underline;
+    text-decoration-thickness: 2px;
+    text-underline-offset: 3px;
+  }
+  a.row:focus-visible { outline: none; }
+  a.row:focus-visible .ring { box-shadow: 0 0 0 3px var(--ground), 0 0 0 5px var(--ink); }
+</style>

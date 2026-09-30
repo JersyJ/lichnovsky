@@ -8,3 +8,6 @@ sealed-secrets-key*.yaml
 *.tfstate.*
 *.tfplan
 crash.log
+
+# Impeccable review screenshots (regenerated on every design pass)
+.impeccable/review/

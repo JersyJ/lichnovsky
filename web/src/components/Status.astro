@@ -1,26 +1,40 @@
 ---
-// Overall status pill, plus the dots on the service cards (matched by data-monitor = the
+// The overall status line, plus the dots in the map's stations (matched by data-monitor = the
 // monitor's name). Data: the public Uptime Kuma status page "home" via /status-data/, which
 // nginx proxies inside the cluster (nginx.conf) and `npm run dev` proxies to status.lichnovsky.eu.
+import { statusPage } from "../data/services";
 ---
-<p class="pill" aria-live="polite">
-  <span class="dot" id="overall"></span>
-  <span id="summary">Checking services…</span>
+<p class="status" aria-live="polite">
+  <span class="dot" id="overall" aria-hidden="true"></span>
+  <span><a id="summary" href={statusPage}>Checking services…</a><span id="checked"></span></span>
 </p>
 
 <style>
-  .pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.55rem;
+  .status {
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
     margin: 0;
-    padding: 0.35rem 0.8rem 0.35rem 0.7rem;
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    background: var(--surface);
-    color: var(--muted);
-    font-size: 0.85rem;
+    color: var(--ink-soft);
+    font-size: 0.9375rem;
   }
+  #summary { color: var(--ink); font-weight: 600; text-decoration: none; white-space: nowrap; }
+  #summary:hover { text-decoration: underline; }
+  #checked { margin-left: 0.6rem; color: var(--ink-faint); white-space: nowrap; }
+  .dot {
+    flex: none;
+    width: 0.625rem;
+    height: 0.625rem;
+    border-radius: 50%;
+    background: var(--ink-faint);
+    opacity: 0.4;
+    transform: translateY(-0.02em);
+    transition: background-color 0.4s, opacity 0.4s;
+  }
+  .dot[data-state] { opacity: 1; }
+  .dot[data-state="up"] { background: var(--up); }
+  .dot[data-state="down"] { background: var(--down); }
+  .dot[data-state="wait"] { background: var(--wait); }
 </style>
 
 <script>
@@ -29,7 +43,7 @@
 
   // Uptime Kuma heartbeat codes: 1 up, 0 down, 2 pending, 3 maintenance.
   const STATE: Record<number, [state: string, label: string]> = {
-    1: ["up", "Operational"], 0: ["down", "Down"], 2: ["wait", "Pending"], 3: ["wait", "Maintenance"],
+    1: ["up", "up"], 0: ["down", "down"], 2: ["wait", "pending"], 3: ["wait", "in maintenance"],
   };
 
   async function get<T>(url: string): Promise<T> {
@@ -38,14 +52,31 @@
     return r.json();
   }
 
-  function mark(dot: Element | null, state: string, label: string) {
-    if (!dot) return;
-    dot.setAttribute("data-state", state);
-    dot.setAttribute("title", label);
+  // A station: its ring's dot colours from data-state, its accessible name gains the state.
+  function mark(el: Element, state: string, label: string) {
+    if (state) el.setAttribute("data-state", state);
+    else el.removeAttribute("data-state");
+    const base = el.getAttribute("data-label");
+    if (base) el.setAttribute("aria-label", label ? `${base}, ${label}` : base);
+    el.setAttribute("title", label ? `${base?.split(",")[0]}: ${label}` : "");
+  }
+
+  // The platform notice under the key (index.astro), in transit-status wording.
+  const NAMES: Record<string, string> = { apps: "Apps", admin: "Admin" };
+  function lineNames(ids: Set<string>) {
+    const names = [...ids].map((id) => NAMES[id] ?? id);
+    return names.length === 1 ? `${names[0]} line` : `${names.join(" and ")} lines`;
+  }
+  function announce(text: string, alert: boolean) {
+    const el = document.getElementById("notice-status");
+    if (!el) return;
+    el.textContent = text;
+    if (alert) el.dataset.alert = "";
+    else delete el.dataset.alert;
   }
 
   async function refresh() {
-    const overall = document.getElementById("overall");
+    const overall = document.getElementById("overall")!;
     const summary = document.getElementById("summary")!;
     try {
       const [page, beats] = await Promise.all([
@@ -53,23 +84,31 @@
         get<Heartbeats>("/status-data/heartbeat/home"),
       ]);
       const down: string[] = [];
+      const delays = { down: new Set<string>(), wait: new Set<string>() };
       for (const m of page.publicGroupList.flatMap((g) => g.monitorList)) {
         const status = beats.heartbeatList[m.id]?.at(-1)?.status;
-        const [state, label] = (status !== undefined && STATE[status]) || ["", "No data"];
+        const [state, label] = (status !== undefined && STATE[status]) || ["", "no data"];
         if (status === 0) down.push(m.name);
-        document.querySelectorAll(`[data-monitor="${CSS.escape(m.name)}"] .dot`)
-          .forEach((dot) => mark(dot, state, label));
+        document.querySelectorAll(`[data-monitor="${CSS.escape(m.name)}"]`).forEach((el) => {
+          mark(el, state, label);
+          const line = el.closest("[data-line]")?.getAttribute("data-line");
+          if (line && (state === "down" || state === "wait")) delays[state].add(line);
+        });
       }
-      mark(overall, down.length ? "down" : "up", "");
+      overall.setAttribute("data-state", down.length ? "down" : "up");
       summary.textContent = down.length
         ? `${down.join(", ")} ${down.length === 1 ? "is" : "are"} down`
-        : "All systems operational";
+        : "All services running";
+      announce(delays.down.size ? `Severe delays on the ${lineNames(delays.down)}.`
+        : delays.wait.size ? `Minor delays on the ${lineNames(delays.wait)}.`
+        : "Good service on all lines.", delays.down.size > 0);
     } catch {
-      mark(overall, "wait", "");
-      summary.textContent = "Status unavailable";
+      overall.setAttribute("data-state", "wait");
+      summary.textContent = "Status unavailable right now";
+      announce("Service information is unavailable right now.", false);
     }
-    const updated = document.getElementById("updated");
-    if (updated) updated.textContent = `Updated ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+    const time = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    document.getElementById("checked")!.textContent = `checked ${time}`;
   }
 
   refresh();

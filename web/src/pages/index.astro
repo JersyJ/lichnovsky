@@ -1,73 +1,188 @@
 ---
 import Base from "../layouts/Base.astro";
-import ServiceCard from "../components/ServiceCard.astro";
+import Map from "../components/Map.astro";
+import Strip from "../components/Strip.astro";
 import Status from "../components/Status.astro";
-import { groups, statusPage } from "../data/services";
+import { repo, planned, lines } from "../data/services";
+
+const signIn = lines.some((l) => l.services.some((s) => s.access === "sign-in" && !s.planned));
 ---
 <Base>
   <main>
     <header>
-      <h1>lichnovsky<span>.eu</span></h1>
-      <p>Self-hosted services, running on a Raspberry Pi at home.</p>
-      <Status />
+      <div class="id">
+        <h1>lichnovsky.eu</h1>
+        <p class="who">Dominik Lichnovsky <span>DevOps / Platform engineer</span></p>
+        <p class="about">Self-hosted services, deployed with GitOps.
+          <span class="hint pointer">Point at a station to see the route, click to open it.</span>
+          <span class="hint touch">Tap a station to open it.</span></p>
+      </div>
+      <div class="side">
+        <Status />
+        <a class="gh" href={repo}>
+          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+          github.com/jersyj/lichnovsky
+        </a>
+      </div>
     </header>
 
-    {groups.map((group) => (
-      <section aria-labelledby={`group-${group.title}`}>
-        <h2 id={`group-${group.title}`}>{group.title}</h2>
-        <div class="grid">
-          {group.services.map((service) => <ServiceCard service={service} />)}
-        </div>
-      </section>
-    ))}
+    <Map />
+    <Strip />
 
-    <footer>
-      <a href={statusPage}>Status page</a>
-      <span aria-hidden="true">·</span>
-      <span id="updated"></span>
-    </footer>
+    <section class="key" aria-labelledby="key-title">
+      <h2 id="key-title">Key</h2>
+      <ul class="lines">
+        <li><i style="--c: var(--tunnel)"></i>Internet <span>through the Cloudflare Tunnel</span></li>
+        <li><i style="--c: var(--home)"></i>Home LAN</li>
+        <li><i style="--c: var(--tailscale)"></i>Anywhere <span>over Tailscale, privately</span></li>
+        <li><i style="--c: var(--apps)"></i>Apps</li>
+        <li><i style="--c: var(--admin)"></i>Admin</li>
+      </ul>
+      <ul class="stations">
+        <li><b data-s="up"></b>running</li>
+        <li><b data-s="down"></b>down</li>
+        <li><b data-s="wait"></b>pending</li>
+        <li><b data-s="none"></b>no status data</li>
+        <li><b data-s="private"></b>home &amp; Tailscale only</li>
+        <li><b data-s="planned"></b>opening soon</li>
+        <li><em class="tag">sign-in<span class="req">*</span></em>sign-in required through Cloudflare Access</li>
+      </ul>
+    </section>
+
+    <!-- Service announcements, like the notices on a platform: they take turns, and the live one
+         (set by Status.astro) holds the board while something is down. -->
+    <p class="notice" id="notice">
+      <span id="notice-status">Checking service on all lines…</span>
+      {planned.map((s) => <span>{s.description}: station closed for engineering works.</span>)}
+      {signIn && <span>Please have your ticket ready: <span class="plain">sign-in<span class="req">*</span></span> stations check at the barrier.</span>}
+    </p>
   </main>
 </Base>
 
 <style>
   main {
-    width: min(60rem, 100% - 2.5rem);
+    width: min(90rem, 100% - 2 * var(--gutter));
     margin: 0 auto;
-    padding: clamp(3rem, 10vh, 6rem) 0 3rem;
+    padding: clamp(1.75rem, 5vh, 3.5rem) 0 clamp(2rem, 5vh, 3.5rem);
+    --gutter: clamp(1rem, 3vw, 2.5rem);
   }
-  header { margin-bottom: 3rem; }
+
+  header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1.25rem 3rem;
+    padding-bottom: clamp(1.5rem, 3vw, 2rem);
+    border-bottom: 1px solid var(--rule);
+  }
   h1 {
     margin: 0;
-    font-size: clamp(2rem, 5vw, 2.75rem);
-    font-weight: 700;
+    font-size: clamp(2.5rem, 6vw, 4.5rem);
+    font-weight: 800;
+    line-height: 0.95;
     letter-spacing: -0.035em;
-    line-height: 1.1;
   }
-  h1 span { color: var(--faint); }
-  header p { margin: 0.6rem 0 1.25rem; color: var(--muted); }
-  section + section { margin-top: 2.5rem; }
-  h2 {
-    margin: 0 0 0.9rem;
-    color: var(--faint);
-    font-size: 0.75rem;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(16.5rem, 1fr));
-    gap: 0.75rem;
-  }
-  footer {
+  .who {
     display: flex;
-    gap: 0.5rem;
-    margin-top: 3.5rem;
-    padding-top: 1.25rem;
-    border-top: 1px solid var(--border);
-    color: var(--faint);
-    font-size: 0.85rem;
+    flex-wrap: wrap;
+    gap: 0 0.6rem;
+    margin: 0.9rem 0 0;
+    font-size: 1.1875rem;
+    font-weight: 700;
   }
-  footer a { text-decoration: none; }
-  footer a:hover { color: var(--text); }
+  .who span { color: var(--ink-soft); font-weight: 500; }
+  .about { max-width: 36rem; margin: 0.35rem 0 0; color: var(--ink-soft); text-wrap: pretty; }
+  .side { display: grid; gap: 0.6rem; justify-items: start; padding-bottom: 0.2rem; }
+  .gh {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--ink-soft);
+    font-size: 0.9375rem;
+    text-decoration: none;
+  }
+  .gh:hover { color: var(--ink); text-decoration: underline; }
+
+  :global(.map) { margin-top: clamp(1rem, 3vw, 2.5rem); }
+  :global(.strip) { margin-top: 1.5rem; }
+  /* From 1000px the map; narrower gets the strip. Map.astro keeps its small text at 12px or more. */
+  @media (max-width: 62.49rem) { :global(.map) { display: none; } }
+  @media (min-width: 62.5rem) { :global(.strip) { display: none; } }
+
+  .key {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.75rem 2rem;
+    margin-top: clamp(1.75rem, 4vw, 2.5rem);
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--rule);
+    color: var(--ink-soft);
+    font-size: 0.875rem;
+  }
+  h2 { grid-row: span 2; margin: 0; color: var(--ink); font-size: 0.875rem; font-weight: 800; }
+  ul { display: flex; flex-wrap: wrap; gap: 0.5rem 1.6rem; margin: 0; padding: 0; list-style: none; }
+  li { display: inline-flex; align-items: center; gap: 0.5rem; }
+  .lines li { color: var(--ink); font-weight: 600; }
+  .lines span { color: var(--ink-soft); font-weight: 400; }
+  i { width: 1.75rem; height: 0.4375rem; background: var(--c); }
+  b {
+    display: grid;
+    place-items: center;
+    width: 1.125rem;
+    height: 1.125rem;
+    border: 3px solid var(--ink);
+    border-radius: 50%;
+  }
+  b::after { content: ""; width: 0.375rem; height: 0.375rem; border-radius: 50%; }
+  b[data-s="up"]::after { background: var(--up); }
+  b[data-s="down"]::after { background: var(--down); }
+  b[data-s="wait"]::after { background: var(--wait); }
+  b[data-s="private"] { border-color: var(--tailscale); }
+  b[data-s="private"]::after { background: var(--up); }
+  b[data-s="none"]::after { background: var(--ink-faint); opacity: 0.35; }
+  b[data-s="planned"] { border-style: dashed; border-color: var(--ink-faint); }
+  em { color: var(--ink); font-style: normal; font-weight: 600; white-space: nowrap; }
+
+  .tag {
+    padding: 0.05rem 0.5rem 0;
+    border: 1.5px solid var(--ink-faint);
+    border-radius: 999px;
+    color: var(--ink-soft);
+    font-size: 0.8125rem;
+  }
+  .req { color: var(--tunnel-text); font-weight: 800; }
+  /* The guide matches the map in front of you: pointing on the wide map, tapping on the strip. */
+  .hint { display: none; margin-left: 0.3em; }
+  @media (min-width: 62.5rem) and (hover: hover) { .hint.pointer { display: inline; } }
+  @media not ((min-width: 62.5rem) and (hover: hover)) { .hint.touch { display: inline; } }
+  .notice { display: grid; margin: 1.75rem 0 0; color: var(--ink-faint); font-size: 0.8125rem; }
+  .notice > span { grid-area: 1 / 1; opacity: 0; transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
+  .notice > span.on { opacity: 1; }
+  .notice > span:not(.on) { pointer-events: none; }
+  .notice .plain { color: var(--ink-soft); font-weight: 600; }
+  @media (prefers-reduced-motion: reduce) { .notice > span { transition: none; } }
+
+  @media (max-width: 40rem) {
+    .key { grid-template-columns: 1fr; }
+    h2 { grid-row: auto; }
+    ul { flex-direction: column; gap: 0.5rem; }
+    .stations li:last-child { flex-direction: column; align-items: flex-start; gap: 0; }
+  }
 </style>
+
+<script>
+  // Rotate the announcements every 7 s; the live status one stays up while something is down.
+  const board = document.getElementById("notice")!;
+  const notes = [...board.children] as HTMLElement[];
+  let at = 0;
+  const show = (i: number) => notes.forEach((n, k) => n.classList.toggle("on", k === i));
+  show(0);
+  if (notes.length > 1) {
+    setInterval(() => {
+      if (notes[0].dataset.alert) return show(0);
+      at = (at + 1) % notes.length;
+      show(at);
+    }, 7000);
+  }
+</script>

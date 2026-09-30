@@ -1,0 +1,243 @@
+---
+// The network map (wide screens): three ways in meet at the Pi, the Apps and Admin lines run out to
+// a station per service. Geometry is fixed in viewBox units; stations are spread along each line
+// from the data, labels alternate above and below like on a transit diagram. Hosts show when a
+// station is pointed at.
+import { lines, host, stationLabel as label, type Service } from "../data/services";
+
+const LINE_Y = { apps: 140, admin: 460 } as const;
+const START = 720;
+const END = 1140;
+
+type Placed = Service & { x: number; y: number; above: boolean; line: "apps" | "admin"; i: number };
+
+let order = 0;
+const placed: Placed[] = lines.flatMap((line) => {
+  const n = line.services.length;
+  const step = n > 1 ? (END - START) / (n - 1) : 0;
+  return line.services.map((s, k) => ({
+    ...s,
+    x: Math.round(START + k * step),
+    y: LINE_Y[line.id],
+    // Apps start above the line, Admin below, then alternate.
+    above: line.id === "apps" ? k % 2 === 0 : k % 2 === 1,
+    line: line.id,
+    i: order++,
+  }));
+});
+
+// Each line is built up to its last open station; beyond it, under construction (dashed).
+const onLine = (id: "apps" | "admin") => placed.filter((s) => s.line === id);
+const lastOpen = (id: "apps" | "admin") =>
+  onLine(id).filter((s) => !s.planned).at(-1)?.x ?? START;
+const lastAny = (id: "apps" | "admin") => onLine(id).at(-1)?.x ?? START;
+
+// Label rows and the spacing between neighbours (the larger of the two rows' gaps). The host row
+// is outermost so it can appear on hover without moving the rest.
+type Row = "name" | "desc" | "tag" | "note" | "here" | "host";
+const GAP: Record<Row, number> = { name: 0, desc: 22, tag: 23, note: 20, here: 22, host: 25 };
+const gap = (a: Row, b: Row) => Math.max(GAP[a], GAP[b]);
+function layout(s: Placed): [Row, number][] {
+  const rows: Row[] = ["name", "desc"];
+  if (s.self) rows.push("here");
+  else if (s.planned) rows.push("note");
+  else {
+    if (s.access === "sign-in") rows.push("tag");
+    rows.push("host");
+  }
+  if (!s.above) {
+    let y = 38;
+    return rows.map((r, k) => [r, k === 0 ? y : (y += gap(rows[k - 1], r))]);
+  }
+  // Above: the row nearest the line sits at -22 and the rest stack upward; the host goes above the
+  // name, a tag/note/pill between the description and the line.
+  const inner = rows.filter((r) => r === "tag" || r === "note" || r === "here");
+  const order: Row[] = [...(rows.includes("host") ? ["host" as Row] : []), "name", "desc", ...inner];
+  let y = -22;
+  const out: [Row, number][] = [];
+  for (let k = order.length - 1; k >= 0; k--) {
+    out.unshift([order[k], y]);
+    if (k > 0) y -= gap(order[k - 1], order[k]);
+  }
+  return out;
+}
+---
+<figure class="map" aria-label="Network map of lichnovsky.eu">
+  <svg viewBox="0 30 1240 550" role="group" aria-labelledby="map-title">
+    <title id="map-title">How requests reach the Raspberry Pi, and the services it runs</title>
+
+    <!-- Ways in -->
+    <g class="way" data-way="tunnel">
+      <path class="line" pathLength="1" d="M60 110 H290 L450 270 H472" />
+      <rect class="terminus" x="56" y="92" width="8" height="36" />
+      <rect class="tick" x="192" y="92" width="6" height="12" />
+      <rect class="tick" x="272" y="92" width="6" height="12" />
+      <text class="way-name" x="52" y="80">Internet</text>
+      <text class="tick-name" x="195" y="82">Cloudflare</text>
+      <text class="tick-name" x="275" y="82">Tunnel</text>
+      <text class="way-note" x="195" y="144">WAF</text>
+      <text class="way-note" x="195" y="162">Access</text>
+      <text class="way-note" x="268" y="144">cloudflared</text>
+    </g>
+    <g class="way" data-way="home">
+      <path class="line" pathLength="1" d="M60 300 H472" />
+      <rect class="terminus" x="56" y="282" width="8" height="36" />
+      <text class="way-name" x="52" y="270">Home LAN</text>
+      <text class="way-note" x="52" y="336">straight to the Pi</text>
+    </g>
+    <g class="way" data-way="tailscale">
+      <path class="line" pathLength="1" d="M60 490 H290 L450 330 H472" />
+      <rect class="terminus" x="56" y="472" width="8" height="36" />
+      <rect class="tick" x="212" y="476" width="6" height="12" />
+      <text class="way-name" x="52" y="460">Anywhere</text>
+      <text class="tick-name" x="215" y="466">Tailscale</text>
+      <text class="way-note" x="215" y="526">private network</text>
+    </g>
+
+    <!-- Lines out of the Pi, each named where it leaves -->
+    <g class="out" data-line="apps">
+      <path class="line" pathLength="1" d={`M512 280 H530 L670 140 H${lastOpen("apps")}`} />
+      {lastAny("apps") > lastOpen("apps") &&
+        <path class="line planned" d={`M${lastOpen("apps")} 140 H${lastAny("apps")}`} />}
+      <g class="bullet"><rect x="532" y="152" width="60" height="24" rx="4" /><text x="562" y="169">Apps</text></g>
+    </g>
+    <g class="out" data-line="admin">
+      <path class="line" pathLength="1" d={`M512 320 H530 L670 460 H${lastAny("admin")}`} />
+      <g class="bullet"><rect x="532" y="432" width="68" height="24" rx="4" /><text x="566" y="449">Admin</text></g>
+    </g>
+
+    <!-- The interchange -->
+    <g class="pi">
+      <rect class="interchange" x="470" y="250" width="44" height="100" rx="22" />
+      <text class="pi-note" x="492" y="236">Traefik</text>
+      <text class="pi-name" x="492" y="392">rpi-01</text>
+      <text class="pi-note" x="492" y="414">Raspberry Pi 5, k3s</text>
+    </g>
+
+    <!-- Stations -->
+    {placed.map((s) => {
+      const rows = layout(s);
+      const ys = rows.map(([, y]) => s.y + y);
+      const top = s.above ? Math.min(...ys) - 22 : s.y - 16;
+      const bottom = s.above ? s.y + 16 : Math.max(...ys) + 8;
+      const at = (r: Row) => s.y + (rows.find(([row]) => row === r)?.[1] ?? 0);
+      const body = (
+        <>
+          <rect class="hit" x={s.x - 72} y={top} width="144" height={bottom - top} />
+          <circle class="ring" cx={s.x} cy={s.y} r="12" />
+          {!s.planned && <circle class="dot" cx={s.x} cy={s.y} r="5.5" />}
+          <text class="st-name" x={s.x} y={at("name")}>{s.name}</text>
+          <text class="st-desc" x={s.x} y={at("desc")}>{s.description}</text>
+          {s.access === "sign-in" && !s.planned &&
+            <g class="tag">
+              <rect x={s.x - 40} y={at("tag") - 15.5} width="80" height="21" rx="10.5" />
+              <text x={s.x} y={at("tag")}>sign-in<tspan class="req">*</tspan></text>
+            </g>}
+          {s.planned && <text class="st-note" x={s.x} y={at("note")}>opening soon</text>}
+          {s.self &&
+            <g class="here">
+              <rect x={s.x - 66} y={at("here") - 16} width="132" height="23" rx="11.5" />
+              <text x={s.x} y={at("here")}>You are here</text>
+            </g>}
+          {!s.self && !s.planned && <text class="st-host" x={s.x} y={at("host")}>{host(s.url)}</text>}
+        </>
+      );
+      return s.planned
+        ? <g class="station" data-line={s.line} data-access={s.access} data-planned style={`--i: ${s.i}`} aria-label={label(s)} role="img">{body}</g>
+        : <a class="station" href={s.url} data-line={s.line} data-access={s.access}
+             data-self={s.self ? "" : undefined} data-monitor={s.monitor}
+             data-label={label(s)} aria-label={label(s)} style={`--i: ${s.i}`}>{body}</a>;
+    })}
+  </svg>
+</figure>
+
+<style>
+  .map { margin: 0; }
+  svg { display: block; width: 100%; height: auto; overflow: visible; }
+
+  .line { fill: none; stroke-width: 12; stroke-linejoin: round; }
+  .way[data-way="tunnel"] { --c: var(--tunnel); }
+  .way[data-way="home"] { --c: var(--home); }
+  .way[data-way="tailscale"] { --c: var(--tailscale); }
+  .out[data-line="apps"], .station[data-line="apps"] { --c: var(--apps); }
+  .out[data-line="admin"], .station[data-line="admin"] { --c: var(--admin); }
+  .line { stroke: var(--c); }
+  .line.planned { stroke-dasharray: 10 8; opacity: 0.55; }
+  @media (prefers-color-scheme: dark) { .line.planned { opacity: 0.9; } }
+  .bullet rect { fill: var(--c); }
+  .bullet text { fill: #fff; font-size: 15px; font-weight: 700; text-anchor: middle; letter-spacing: 0.02em; }
+  .out[data-line="admin"] .bullet rect { fill: var(--admin-text); }
+  .terminus, .tick { fill: var(--c); }
+
+  text { fill: var(--ink); font-family: var(--sans); }
+  .way-name { font-size: 20px; font-weight: 700; }
+  .tick-name { font-size: 17px; font-weight: 600; text-anchor: middle; }
+  .way-note { fill: var(--ink-faint); font-size: 14.5px; text-anchor: middle; }
+  .way[data-way="home"] .way-note { text-anchor: start; }
+
+  .interchange { fill: var(--ground); stroke: var(--ink); stroke-width: 5; }
+  .pi-name { font-size: 24px; font-weight: 800; text-anchor: middle; letter-spacing: -0.01em; }
+  .pi-note { fill: var(--ink-soft); font-size: 15px; text-anchor: middle; }
+
+  .station { cursor: pointer; outline: none; }
+  .station[data-planned] { cursor: default; }
+  .hit { fill: transparent; }
+  .ring { fill: var(--ground); stroke: var(--ink); stroke-width: 4; }
+  .station[data-access="private"] .ring { stroke: var(--tailscale); }
+  .station[data-planned] .ring { stroke: var(--ink-faint); stroke-dasharray: 4 3.5; }
+  .dot { fill: var(--ink-faint); opacity: 0.35; transition: fill 0.4s, opacity 0.4s; transition-delay: calc(var(--i) * 70ms); }
+  .station[data-state] .dot { opacity: 1; }
+  .station[data-state="up"] .dot, .station[data-self] .dot { fill: var(--up); opacity: 1; }
+  .station[data-state="down"] .dot { fill: var(--down); }
+  .station[data-state="wait"] .dot { fill: var(--wait); }
+
+  .st-name { font-size: 20px; font-weight: 700; text-anchor: middle; letter-spacing: -0.005em; }
+  .st-desc { fill: var(--ink-soft); font-size: 16px; text-anchor: middle; }
+  /* Sign-in: an outlined tag; the asterisk reads as "required", like on a form. */
+  .tag rect { fill: none; stroke: var(--ink-faint); stroke-width: 1.5; }
+  .tag text { fill: var(--ink-soft); font-size: 14.5px; font-weight: 600; text-anchor: middle; }
+  .tag .req { fill: var(--tunnel-text); font-weight: 800; }
+  .st-note { fill: var(--ink-faint); font-size: 14.5px; font-weight: 600; text-anchor: middle; }
+  /* Hosts are for the curious: they appear on the station being pointed at. */
+  .st-host { fill: var(--ink-faint); font: 14.5px var(--mono); text-anchor: middle; opacity: 0; transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
+  .station:is(:hover, :focus-visible) .st-host { opacity: 1; }
+  .station[data-planned] .st-name { fill: var(--ink-faint); }
+  .here rect { fill: var(--ink); }
+  .here text { fill: var(--ground); font-size: 14px; font-weight: 700; text-anchor: middle; letter-spacing: 0.04em; text-transform: uppercase; }
+
+  .station:focus-visible .ring { stroke-width: 5; }
+  .station:focus-visible .st-name { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
+  a.station:hover .st-name { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
+
+  /* Between 1000 and 1120px the map renders at about 0.76 scale: lift the small text so nothing
+     drops under 12px. Station spacing leaves room for the wider labels. */
+  @media (max-width: 69.99rem) {
+    .way-note, .st-note, .st-host, .pi-note { font-size: 16px; }
+    .here, .tag { transform-box: fill-box; transform-origin: center; transform: scale(1.15); }
+  }
+
+  /* Route: pointing at a station lights the way a request takes to it and dims the rest.
+     A home-only station isn't carried by the tunnel, so the Internet line stays dark. */
+  .way, .out, .station, .pi { transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
+  svg:has(a.station:is(:hover, :focus-visible)) :is(.way, .out, .station) { opacity: 0.16; }
+  svg:has(a.station[data-line="apps"]:is(:hover, :focus-visible)) .out[data-line="apps"],
+  svg:has(a.station[data-line="admin"]:is(:hover, :focus-visible)) .out[data-line="admin"],
+  svg:has(a.station:is(:hover, :focus-visible)) :is(.way[data-way="home"], .way[data-way="tailscale"]),
+  svg:has(a.station:not([data-access="private"]):is(:hover, :focus-visible)) .way[data-way="tunnel"],
+  svg:has(a.station:is(:hover, :focus-visible)) .station:is(:hover, :focus-visible) { opacity: 1; }
+
+  /* Drawing in: the ways in first, then through the Pi out to the ends of both lines. */
+  @media (prefers-reduced-motion: no-preference) {
+    .line:not(.planned) { stroke-dasharray: 1; animation: draw 0.9s cubic-bezier(0.16, 1, 0.3, 1) both; }
+    .way .line { animation-delay: 0.05s; }
+    .way[data-way="home"] .line { animation-delay: 0.12s; }
+    .way[data-way="tailscale"] .line { animation-delay: 0.19s; }
+    .out .line { animation-duration: 1.1s; animation-delay: 0.55s; }
+    .pi, .station, .line.planned, .terminus, .tick { animation: appear 0.5s ease-out backwards; }
+    .pi { animation-delay: 0.45s; }
+    .station { animation-delay: calc(0.8s + var(--i) * 45ms); }
+    .line.planned { animation-delay: 1.4s; }
+    @keyframes draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+    @keyframes appear { from { opacity: 0; } }
+  }
+</style>

@@ -1,11 +1,17 @@
 ---
 import Base from "../layouts/Base.astro";
 ---
-<Base title="Not found · lichnovsky.eu">
+<Base title="No such station · lichnovsky.eu">
   <main>
-    <p class="code">404</p>
-    <h1>This page doesn't exist.</h1>
-    <a href="/">← Back to lichnovsky.eu</a>
+    <svg viewBox="0 0 320 60" width="320" height="60" aria-hidden="true">
+      <path d="M0 30 H200" stroke="var(--apps)" stroke-width="12" />
+      <path d="M200 30 H300" stroke="var(--apps)" stroke-width="12" stroke-dasharray="10 8" opacity="0.4" />
+      <rect x="196" y="12" width="8" height="36" fill="var(--apps)" />
+      <circle cx="300" cy="30" r="11" fill="var(--ground)" stroke="var(--ink-faint)" stroke-width="4" stroke-dasharray="4 3.5" />
+    </svg>
+    <h1>No such station.</h1>
+    <p>The line doesn't run to this address.</p>
+    <a href="/">Back to the map</a>
   </main>
 </Base>
 
@@ -13,13 +19,14 @@ import Base from "../layouts/Base.astro";
   main {
     display: grid;
     place-content: center;
+    justify-items: start;
     gap: 0.5rem;
     min-height: 100vh;
+    min-height: 100svh;
     padding: 1.5rem;
-    text-align: center;
   }
-  .code { margin: 0; color: var(--faint); font: 600 0.85rem/1 var(--mono); letter-spacing: 0.1em; }
-  h1 { margin: 0 0 0.75rem; font-size: 1.5rem; letter-spacing: -0.02em; }
-  a { color: var(--muted); text-decoration: none; }
-  a:hover { color: var(--text); }
+  svg { max-width: 100%; height: auto; margin-bottom: 1.25rem; }
+  h1 { margin: 0; font-size: clamp(2rem, 5vw, 3rem); font-weight: 800; line-height: 1; letter-spacing: -0.03em; }
+  p { margin: 0 0 0.75rem; color: var(--ink-soft); font-size: 1.125rem; }
+  a { font-weight: 700; text-decoration-thickness: 2px; text-underline-offset: 0.25em; }
 </style>

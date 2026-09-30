@@ -1,42 +1,77 @@
-// Everything the start page links to. `monitor` is the monitor's name on the public Uptime Kuma
-// status page "home"; cards without one show no status dot.
-import type { IconName } from "../components/Icon.astro";
+// Everything the start page's network map shows. Each service is a station on its line, in order.
+// `monitor` is the monitor's name on the public Uptime Kuma status page "home"; stations without
+// one show an empty ring.
+
+/** How a visitor can reach the service. */
+export type Access =
+  /** Open from anywhere. */
+  | "public"
+  /** From the internet only after signing in through Cloudflare Access. */
+  | "sign-in"
+  /** Only at home and over Tailscale; the tunnel doesn't carry it. */
+  | "private";
 
 export type Service = {
   name: string;
   description: string;
   url: string;
-  icon: IconName;
+  access: Access;
   monitor?: string;
-  /** Only reachable at home and over Tailscale. */
-  private?: boolean;
+  /** Not deployed yet: drawn as a station under construction, not linked. */
+  planned?: boolean;
+  /** The page the visitor is reading ("you are here"). */
+  self?: boolean;
 };
 
-export const groups: { title: string; services: Service[] }[] = [
+export type Line = { id: "apps" | "admin"; name: string; services: Service[] };
+
+export const lines: Line[] = [
   {
-    title: "Apps",
+    id: "apps",
+    name: "Apps",
     services: [
+      { name: "lichnovsky.eu", description: "This page", url: "https://lichnovsky.eu",
+        access: "public", self: true },
       { name: "Vaultwarden", description: "Passwords", url: "https://vault.lichnovsky.eu",
-        icon: "key", monitor: "Vaultwarden" },
+        access: "public", monitor: "Vaultwarden" },
       { name: "Papra", description: "Documents", url: "https://papra.lichnovsky.eu",
-        icon: "file", monitor: "Papra" },
+        access: "sign-in", monitor: "Papra" },
       { name: "Jellyfin", description: "Movies & Shows", url: "https://tv.lichnovsky.eu",
-        icon: "play", monitor: "Jellyfin", private: true },
+        access: "private", monitor: "Jellyfin" },
+      { name: "Immich", description: "Photos", url: "https://photos.lichnovsky.eu",
+        access: "public", planned: true },
     ],
   },
   {
-    title: "Admin",
+    id: "admin",
+    name: "Admin",
     services: [
       { name: "Argo CD", description: "Deployments", url: "https://argocd.lichnovsky.eu",
-        icon: "git", monitor: "ArgoCD" },
+        access: "sign-in", monitor: "ArgoCD" },
       { name: "Grafana", description: "Metrics & Logs", url: "https://grafana.lichnovsky.eu",
-        icon: "chart", monitor: "Grafana" },
+        access: "sign-in", monitor: "Grafana" },
       { name: "Uptime Kuma", description: "Monitoring", url: "https://status.lichnovsky.eu",
-        icon: "pulse", monitor: "Uptime Kuma" },
+        access: "sign-in", monitor: "Uptime Kuma" },
       { name: "AdGuard Home", description: "DNS & Ad Blocking", url: "https://dns.lichnovsky.eu",
-        icon: "shield", monitor: "Adguard", private: true },
+        access: "private", monitor: "Adguard" },
     ],
   },
 ];
 
 export const statusPage = "https://status.lichnovsky.eu/status/home";
+export const repo = "https://github.com/jersyj/lichnovsky";
+
+export const host = (url: string) => new URL(url).host;
+
+/** On the map, sign-in is a `sign-in*` tag and home-only a blue ring (both in the key); a planned
+    station gets a written note. Screen readers get all of it in words. */
+export const accessText = (s: Service) =>
+  s.planned ? "opening soon" : s.access === "private" ? "home and Tailscale only"
+  : s.access === "sign-in" ? "sign-in required" : "";
+
+/** A station's accessible name; the status script appends the live state. */
+export const stationLabel = (s: Service) =>
+  [s.name, s.description, s.self ? "you are here" : accessText(s)].filter(Boolean).join(", ");
+
+/** Stations still under construction, for the "mind the gap" line under the key. */
+export const planned = lines.flatMap((l) => l.services).filter((s) => s.planned);

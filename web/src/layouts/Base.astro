@@ -1,8 +1,11 @@
 ---
+import "@fontsource-variable/overpass/wght.css";
+import "@fontsource/overpass-mono/latin-400.css";
+
 interface Props { title?: string; description?: string }
 const {
   title = "lichnovsky.eu",
-  description = "Self-hosted services of lichnovsky.eu",
+  description = "Dominik Lichnovsky, DevOps / Platform engineer. A network map of the homelab behind lichnovsky.eu, with the live status of every service.",
 } = Astro.props;
 ---
 <!doctype html>
@@ -12,6 +15,8 @@ const {
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content={description} />
     <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0b1330" media="(prefers-color-scheme: dark)" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <title>{title}</title>
   </head>
@@ -21,58 +26,61 @@ const {
 </html>
 
 <style is:global>
+  /* The map's colours. Lines are flat transit colours; green, red and amber belong to status only.
+     Light and dark follow the system; dark is the night service: same lines on a navy ground. */
   :root {
-    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-    --bg: #fafafa;
-    --surface: #ffffff;
-    --icon-bg: #f4f4f5;
-    --text: #18181b;
-    --muted: #52525b;
-    --faint: #a1a1aa;
-    --border: #e4e4e7;
-    --border-strong: #d4d4d8;
-    --shadow: rgb(0 0 0 / 0.25);
-    --accent: #2563eb;
-    --up: #16a34a;
-    --down: #dc2626;
-    --wait: #d97706;
+    --sans: "Overpass Variable", ui-sans-serif, system-ui, sans-serif;
+    --mono: "Overpass Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    --ground: #ffffff;
+    --ink: #0b1b4d;
+    --ink-soft: #3d4a73;
+    --ink-faint: #69739a;
+    --rule: #dde1ec;
+    --tunnel: #ee7c0e;
+    --tunnel-text: #b35600;
+    --home: #a45a00;
+    --tailscale: #0098d4;
+    --tailscale-text: #0077a8;
+    --apps: #9b0056;
+    --admin: #9aa3ab;
+    --admin-text: #5f6972;
+    --up: #10a14d;
+    --down: #dc241f;
+    --wait: #e0a100;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #09090b;
-      --surface: #111113;
-      --icon-bg: #1c1c1f;
-      --text: #fafafa;
-      --muted: #a1a1aa;
-      --faint: #71717a;
-      --border: #232326;
-      --border-strong: #3f3f46;
-      --shadow: rgb(0 0 0 / 0.8);
-      --accent: #60a5fa;
+      --ground: #0b1330;
+      --ink: #eef1fa;
+      --ink-soft: #b7bfd9;
+      --ink-faint: #8891b3;
+      --rule: #232d57;
+      --tunnel: #f5923a;
+      --tunnel-text: #f7a660;
+      --home: #c98a3e;
+      --tailscale: #2fb3e8;
+      --tailscale-text: #5cc6ef;
+      --apps: #d1377f;
+      --admin: #7c8791;
+      --admin-text: #5f6972;
+      --up: #2cc46b;
+      --down: #f0524d;
+      --wait: #f0b72c;
     }
   }
+
   *, *::before, *::after { box-sizing: border-box; }
   html { -webkit-text-size-adjust: 100%; }
   body {
     margin: 0;
-    background: var(--bg);
-    color: var(--text);
+    background: var(--ground);
+    color: var(--ink);
     font: 16px/1.5 var(--sans);
     -webkit-font-smoothing: antialiased;
+    font-variant-numeric: tabular-nums;
   }
-  a { color: inherit; }
-
-  /* Status dots: data-state is set by the status script (up | down | wait). */
-  .dot {
-    display: inline-block;
-    flex: none;
-    width: 0.5rem;
-    height: 0.5rem;
-    border-radius: 50%;
-    background: var(--faint);
-  }
-  .dot[data-state="up"] { background: var(--up); box-shadow: 0 0 0 3px color-mix(in srgb, var(--up) 18%, transparent); }
-  .dot[data-state="down"] { background: var(--down); box-shadow: 0 0 0 3px color-mix(in srgb, var(--down) 18%, transparent); }
-  .dot[data-state="wait"] { background: var(--wait); }
+  a { color: inherit; text-underline-offset: 0.2em; text-decoration-thickness: 1px; }
+  a:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; border-radius: 2px; }
+  ::selection { background: var(--ink); color: var(--ground); }
+  html { scrollbar-color: var(--ink-faint) var(--ground); }
 </style>

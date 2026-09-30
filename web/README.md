@@ -11,21 +11,24 @@ npm install
 npm run dev        # http://localhost:4321, reloads on save
 npm run build      # static files in dist/, exactly what gets deployed
 ```
-In `npm run dev`, the status widget shows live data: `/status-data/…` is proxied to the public
+In `npm run dev`, the station dots show live data: `/status-data/…` is proxied to the public
 status page (`astro.config.mjs`).
 
 | Path | What |
 |---|---|
-| `src/data/services.ts` | the services on the start page: name, URL, icon, group, status monitor |
+| `src/data/services.ts` | the stations on the map: name, URL, line (Apps / Admin), access, status monitor |
 | `src/pages/` | one file per URL (`index.astro` → `/`, `404.astro` → the not-found page) |
-| `src/layouts/Base.astro` | the HTML shell and the colour tokens (light and dark follow the system) |
-| `src/components/` | `ServiceCard`, `Icon` (inline SVG icons), `Status` (live status pill and dots) |
+| `src/layouts/Base.astro` | the HTML shell, fonts (Overpass, self-hosted) and the colour tokens (light, and dark following the system) |
+| `src/components/` | `Map` (the network map on wide screens), `Strip` (the same map as a vertical line on phones), `Status` (live status line and station dots) |
 | `public/` | files copied as-is (`favicon.svg`) |
 | `nginx.conf` | how the image serves the site: cache headers, `/healthz`, the `/status-data/` proxy |
 | `Dockerfile` | builds the site, then copies it into the nginx image |
 
-**Adding a service:** one entry in `src/data/services.ts`. For a live status dot, set `monitor` to the
-monitor's name on the public status page `home` in Uptime Kuma (and add the monitor to that page).
+**Adding a service:** one entry in the right line in `src/data/services.ts`; the map spaces the
+stations itself. Set `access` (`public`, `sign-in` for Cloudflare Access, `private` for home and
+Tailscale only). For a live status dot, set `monitor` to the monitor's name on the public status page
+`home` in Uptime Kuma (and add the monitor to that page). `planned: true` draws a station that isn't
+open yet.
 
 ## Deploy
 
