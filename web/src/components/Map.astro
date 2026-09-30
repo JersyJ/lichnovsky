@@ -130,7 +130,7 @@ function layout(s: Placed): [Row, number][] {
           <text class="st-desc" x={s.x} y={at("desc")}>{s.description}</text>
           {s.access === "sign-in" && !s.planned &&
             <g class="tag">
-              <rect x={s.x - 40} y={at("tag") - 15.5} width="80" height="21" rx="10.5" />
+              <rect x={s.x - 42} y={at("tag") - 15.5} width="84" height="21" rx="10.5" />
               <text x={s.x} y={at("tag")}>sign-in<tspan class="req">*</tspan></text>
             </g>}
           {s.planned && <text class="st-note" x={s.x} y={at("note")}>opening soon</text>}

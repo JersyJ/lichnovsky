@@ -182,7 +182,7 @@ let order = 0;
     line-height: 1.4;
   }
   /* Sign-in: an outlined tag; the asterisk reads as "required", like on a form. */
-  .tag { border: 1.5px solid var(--ink-faint); color: var(--ink-soft); font-weight: 600; }
+  .tag { padding-right: 0.65rem; border: 1.5px solid var(--ink-faint); color: var(--ink-soft); font-weight: 600; }
   .req { color: var(--tunnel-text); font-weight: 800; }
   .here { background: var(--ink); color: var(--ground); letter-spacing: 0.04em; text-transform: uppercase; }
   .note { color: var(--ink-faint); font-size: 0.84375rem; font-weight: 600; line-height: 1.35; }
@@ -233,7 +233,7 @@ let order = 0;
   /* Landscape phones and portrait tablets: the lines run side by side, Admin branching off under
      the Pi into its own column, instead of one strip down the left edge. */
   .admin-stub { display: none; }
-  @media (min-width: 40rem) {
+  @media (min-width: 40rem) and (max-width: 62.49rem) {
     .strip { --gap: 2rem; position: relative; display: grid; grid-template-columns: 1fr 1fr; column-gap: var(--gap); align-items: start; }
     .ways { grid-column: 1 / -1; }
     .ways .admin:not(.admin-stub) { display: none; }

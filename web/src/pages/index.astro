@@ -31,13 +31,7 @@ const signIn = lines.some((l) => l.services.some((s) => s.access === "sign-in" &
 
     <section class="key" aria-labelledby="key-title">
       <h2 id="key-title">Key</h2>
-      <ul class="lines">
-        <li><i class="sw-tunnel"></i>Internet <span>through the Cloudflare Tunnel</span></li>
-        <li><i class="sw-home"></i>Home LAN</li>
-        <li><i class="sw-tailscale"></i>Anywhere <span>over Tailscale, privately</span></li>
-        <li><i class="sw-apps"></i>Apps</li>
-        <li><i class="sw-admin"></i>Admin</li>
-      </ul>
+      <!-- Only what the map can't say by itself: every line is already named on it. -->
       <ul class="stations">
         <li><b data-s="up"></b>running</li>
         <li><b data-s="down"></b>down</li>
@@ -45,7 +39,7 @@ const signIn = lines.some((l) => l.services.some((s) => s.access === "sign-in" &
         <li><b data-s="none"></b>no status data</li>
         <li><b data-s="private"></b>home &amp; Tailscale only</li>
         <li><b data-s="planned"></b>opening soon</li>
-        <li><em class="tag">sign-in<span class="req">*</span></em>sign-in required through Cloudflare Access</li>
+        <li><em class="tag">sign-in<span class="req">*</span></em>through Cloudflare Access</li>
       </ul>
     </section>
 
@@ -113,6 +107,7 @@ const signIn = lines.some((l) => l.services.some((s) => s.access === "sign-in" &
   .key {
     display: grid;
     grid-template-columns: auto 1fr;
+    align-items: baseline;
     gap: 0.75rem 2rem;
     margin-top: clamp(1.75rem, 4vw, 2.5rem);
     padding-top: 1.25rem;
@@ -120,17 +115,9 @@ const signIn = lines.some((l) => l.services.some((s) => s.access === "sign-in" &
     color: var(--ink-soft);
     font-size: 0.875rem;
   }
-  h2 { grid-row: span 2; margin: 0; color: var(--ink); font-size: 0.875rem; font-weight: 800; }
+  h2 { margin: 0; color: var(--ink); font-size: 0.875rem; font-weight: 800; }
   ul { display: flex; flex-wrap: wrap; gap: 0.5rem 1.6rem; margin: 0; padding: 0; list-style: none; }
   li { display: inline-flex; align-items: center; gap: 0.5rem; }
-  .lines li { color: var(--ink); font-weight: 600; }
-  .lines span { color: var(--ink-soft); font-weight: 400; }
-  i { width: 1.75rem; height: 0.4375rem; background: var(--c); }
-  .sw-tunnel { --c: var(--tunnel); }
-  .sw-home { --c: var(--home); }
-  .sw-tailscale { --c: var(--tailscale); }
-  .sw-apps { --c: var(--apps); }
-  .sw-admin { --c: var(--admin); }
   b {
     display: grid;
     place-items: center;
@@ -150,13 +137,13 @@ const signIn = lines.some((l) => l.services.some((s) => s.access === "sign-in" &
   em { color: var(--ink); font-style: normal; font-weight: 600; white-space: nowrap; }
 
   .tag {
-    padding: 0.05rem 0.5rem 0;
+    padding: 0.05rem 0.6rem 0 0.5rem;
     border: 1.5px solid var(--ink-faint);
     border-radius: 999px;
     color: var(--ink-soft);
     font-size: 0.8125rem;
   }
-  .req { color: var(--tunnel-text); font-weight: 800; }
+  .req { margin-left: 0.05em; color: var(--tunnel-text); font-weight: 800; }
   /* The guide matches the map in front of you: pointing on the wide map, tapping on the strip. */
   .hint { display: none; margin-left: 0.3em; }
   @media (min-width: 62.5rem) and (hover: hover) { .hint.pointer { display: inline; } }
@@ -168,11 +155,12 @@ const signIn = lines.some((l) => l.services.some((s) => s.access === "sign-in" &
   .notice .plain { color: var(--ink-soft); font-weight: 600; }
   @media (prefers-reduced-motion: reduce) { .notice > span { transition: none; } }
 
-  @media (max-width: 40rem) {
-    .key { grid-template-columns: 1fr; }
-    h2 { grid-row: auto; }
-    ul { flex-direction: column; gap: 0.5rem; }
-    .stations li:last-child { flex-direction: column; align-items: flex-start; gap: 0; }
+  /* Phones: the key and the notice line up with the centred strip (18rem, Strip.astro). */
+  @media (max-width: 39.99rem) {
+    .key { grid-template-columns: 1fr; gap: 0.6rem; }
+    .key > *, .notice { width: min(100%, 18rem); margin-inline: auto; }
+    .key > ul { gap: 0.55rem 1.1rem; }
+    .notice { margin-top: 1.5rem; }
   }
 </style>
 
