@@ -22,7 +22,7 @@ status page (`astro.config.mjs`).
 | `src/components/` | `Map` (the network map on wide screens), `Strip` (the same map as a vertical line on phones), `Status` (live status line and station dots) |
 | `public/` | files copied as-is (`favicon.svg`) |
 | `nginx.conf` | how the image serves the site: cache headers, `/healthz`, the `/status-data/` proxy |
-| `Dockerfile` | builds the site, then copies it into the nginx image |
+| `Dockerfile` | builds the site, then copies it into the slim unprivileged nginx image and checks the config |
 
 **Adding a service:** one entry in the right line in `src/data/services.ts`; the map spaces the
 stations itself. Set `access` (`public`, `sign-in` for Cloudflare Access, `private` for home and
