@@ -14,6 +14,7 @@ let order = 0;
     <path class="l tailscale" d="M64 102 V150" />
     <path class="l apps" d="M24 170 V200" />
     <path class="l admin" d="M44 170 V200" />
+    <path class="l admin admin-stub" d="M44 170 V190" />
     <rect class="term tunnel" x="12" y="10" width="24" height="8" />
     <rect class="term home" x="32" y="54" width="24" height="8" />
     <rect class="term tailscale" x="52" y="98" width="24" height="8" />
@@ -211,15 +212,40 @@ let order = 0;
   .row[data-selected] .st { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
   .row[data-selected] .ring { box-shadow: 0 0 0 4px color-mix(in srgb, var(--c) 25%, transparent); }
 
-  .row, .name, li::before, li::after, .ways :is(.l, .term, .tunnel-label) {
+  .row, .name, li::before, li::after, .strip::before, .ways :is(.l, .term, .tunnel-label) {
     transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   }
   .strip:has([data-selected]) .row:not([data-selected]) { opacity: 0.3; }
   .strip:has(.line[data-line="apps"] [data-selected]) li::after,
+  .strip:has(.line[data-line="apps"] [data-selected])::before,
   .strip:has(.line[data-line="apps"] [data-selected]) .ways .admin,
   .strip:has(.line[data-line="admin"] [data-selected]) .line[data-line="apps"] li::before,
   .strip:has(.line[data-line="admin"] [data-selected]) .ways .apps,
   .strip:has(.stop[data-access="private"] [data-selected]) .ways :is(.tunnel, .tunnel-label) { opacity: 0.2; }
   .strip:has(.line[data-line="apps"] [data-selected]) .line[data-line="admin"] .name,
   .strip:has(.line[data-line="admin"] [data-selected]) .line[data-line="apps"] .name { opacity: 0.3; }
+
+  /* Landscape phones and portrait tablets: the lines run side by side, Admin branching off under
+     the Pi into its own column, instead of one strip down the left edge. */
+  .admin-stub { display: none; }
+  @media (min-width: 40rem) {
+    .strip { --gap: 2rem; position: relative; display: grid; grid-template-columns: 1fr 1fr; column-gap: var(--gap); align-items: start; }
+    .ways { grid-column: 1 / -1; }
+    .ways .admin:not(.admin-stub) { display: none; }
+    .ways .admin-stub { display: inline; }
+    .strip::before {
+      content: "";
+      position: absolute;
+      top: 186px;
+      left: calc(var(--b) - var(--rail) / 2);
+      width: calc(50% + var(--gap) / 2 + var(--a) - var(--b) + var(--rail));
+      height: var(--rail);
+      background: var(--admin);
+    }
+    .line[data-line="apps"] li::after { display: none; }
+    .line[data-line="admin"] { --at: var(--a); }
+    .line[data-line="admin"] li::after { left: calc(var(--a) - var(--rail) / 2); }
+    .line[data-line="admin"] li.name::after { top: -14px; }
+    .name, .row { padding-left: 56px; }
+  }
 </style>
