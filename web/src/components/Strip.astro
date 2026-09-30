@@ -18,15 +18,15 @@ let order = 0;
     <rect class="term tunnel" x="12" y="10" width="24" height="8" />
     <rect class="term home" x="32" y="54" width="24" height="8" />
     <rect class="term tailscale" x="52" y="98" width="24" height="8" />
-    <text class="n tunnel-label" x="90" y="20">Internet</text>
-    <text class="s tunnel-label" x="90" y="38">via Cloudflare Tunnel</text>
-    <text class="n" x="90" y="64">Home LAN</text>
-    <text class="s" x="90" y="82">straight to the Pi</text>
-    <text class="n" x="90" y="108">Anywhere</text>
-    <text class="s" x="90" y="126">over Tailscale</text>
+    <text class="n tunnel-label" x="88" y="20">Internet</text>
+    <text class="s tunnel-label" x="88" y="38">via Cloudflare Tunnel</text>
+    <text class="n" x="88" y="64">Home LAN</text>
+    <text class="s" x="88" y="82">straight to the Pi</text>
+    <text class="n" x="88" y="108">Anywhere</text>
+    <text class="s" x="88" y="126">over Tailscale</text>
     <rect class="pi" x="10" y="146" width="68" height="28" rx="14" />
-    <text class="n big" x="90" y="164">rpi-01</text>
-    <text class="s" x="90" y="182">Raspberry Pi 5, k3s, Traefik</text>
+    <text class="n big" x="88" y="164">rpi-01</text>
+    <text class="s" x="88" y="182">Raspberry Pi 5, k3s, Traefik</text>
   </svg>
 
   {lines.map((line) => (
@@ -65,7 +65,12 @@ let order = 0;
 </section>
 
 <style>
-  .strip { --rail: 8px; --a: 24px; --b: 44px; }
+  .strip { --rail: 8px; --a: 24px; --b: 44px; --text: 88px; }
+  /* Phones: the strip is one block centred in the page (rails on its left edge, text left-aligned
+     beside them) rather than hanging off the left gutter with the right side empty. */
+  @media (max-width: 39.99rem) {
+    .strip { width: min(100%, 18rem); margin-inline: auto; }
+  }
   .ways { display: block; overflow: visible; }
   .l { fill: none; stroke-width: 8; }
   .tunnel { stroke: var(--tunnel); fill: var(--tunnel); }
@@ -105,7 +110,7 @@ let order = 0;
   .line[data-line="apps"] { --at: var(--a); }
   .line[data-line="admin"] { --at: var(--b); }
 
-  .name { padding: 1.1rem 0 0.35rem 76px; }
+  .name { padding: 1.1rem 0 0.35rem var(--text); }
   .name span {
     display: inline-block;
     padding: 0.1rem 0.55rem 0;
@@ -130,7 +135,7 @@ let order = 0;
     padding-right: 1rem;
     align-items: center;
     min-height: 3.75rem;
-    padding: 0.55rem 0 0.55rem 76px;
+    padding: 0.55rem 0 0.55rem var(--text);
     color: inherit;
     text-decoration: none;
   }
@@ -246,6 +251,6 @@ let order = 0;
     .line[data-line="admin"] { --at: var(--a); }
     .line[data-line="admin"] li::after { left: calc(var(--a) - var(--rail) / 2); }
     .line[data-line="admin"] li.name::after { top: -14px; }
-    .name, .row { padding-left: 56px; }
+    .strip { --text: 56px; }
   }
 </style>

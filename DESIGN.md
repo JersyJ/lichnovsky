@@ -240,7 +240,7 @@ Hovering or focusing a station dims every way in, line and other station to 0.16
 
 On touch, the first tap selects a station (`data-selected`) and shows the same route; the second tap opens it, and tapping elsewhere or pressing Escape clears it. Mouse and keyboard open at once. On the strip, the selected stop reveals its hostname and a solid ink "Open" pill (0.8125rem, 700), gains a 4px halo in its line colour, and the rest fades: other stops to 0.3, the other line's rail and badge, and the Internet line for a home-only stop, to 0.2. The touch guide in the header reads "Tap a station to see the route, tap again to open it."
 
-From 40rem up to the map (landscape phones, portrait tablets), the strip splits into two columns: Apps stays on the left rail, and Admin leaves the Pi as a horizontal branch into its own column on the right, with stop text starting 56px in instead of 76px.
+On phones (below 40rem) the strip is one block, at most 18rem wide, centred in the page: the rails sit on its left edge, and the way-in labels and stop text share one left edge 88px in. From 40rem up to the map (landscape phones, portrait tablets), the strip splits into two columns: Apps stays on the left rail, and Admin leaves the Pi as a horizontal branch into its own column on the right, with stop text starting 56px in instead of 88px.
 
 ### Drawing In (load motion, map only)
 Lines draw from their start (0.9s, ways in staggered 0.05s/0.12s/0.19s), the interchange appears at 0.45s, the out lines draw from 0.55s over 1.1s, stations fade in from 0.8s with a 45ms stagger, planned sections at 1.4s. All of it is inside `prefers-reduced-motion: no-preference`; otherwise the finished map shows.
