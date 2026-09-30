@@ -1,9 +1,9 @@
 ---
 // The network map on narrow screens: the in-carriage version of Map.astro. The ways in join at the
-// Pi, then the Apps and Admin lines run down the left edge with a stop per service. No hosts here:
-// there is no pointer to reveal them with.
-import { lines, stationLabel as label } from "../data/services";
-
+// Pi, then the Apps and Admin lines run down the left edge with a stop per service. On touch, the
+// first tap selects a stop (route lit, host and Open shown) and the second opens it; index.astro
+// handles the taps.
+import { lines, host, stationLabel as label } from "../data/services";
 
 let order = 0;
 ---
@@ -17,8 +17,8 @@ let order = 0;
     <rect class="term tunnel" x="12" y="10" width="24" height="8" />
     <rect class="term home" x="32" y="54" width="24" height="8" />
     <rect class="term tailscale" x="52" y="98" width="24" height="8" />
-    <text class="n" x="90" y="20">Internet</text>
-    <text class="s" x="90" y="38">via Cloudflare Tunnel</text>
+    <text class="n tunnel-label" x="90" y="20">Internet</text>
+    <text class="s tunnel-label" x="90" y="38">via Cloudflare Tunnel</text>
     <text class="n" x="90" y="64">Home LAN</text>
     <text class="s" x="90" y="82">straight to the Pi</text>
     <text class="n" x="90" y="108">Anywhere</text>
@@ -42,6 +42,11 @@ let order = 0;
               {s.access === "sign-in" && !s.planned && <span class="tag" aria-hidden="true">sign-in<span class="req">*</span></span>}
               {s.planned && <span class="note">opening soon</span>}
               {s.self && <span class="here">You are here</span>}
+              {!s.planned && !s.self && <span class="host">{host(s.url)}</span>}
+              {!s.planned && !s.self &&
+                <span class="open" aria-hidden="true">Open
+                  <svg width="12" height="12" viewBox="0 0 12 12"><path d="M3.5 8.5 8.5 3.5M4.5 3.5h4v4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                </span>}
             </span>
           </>
         );
@@ -178,4 +183,38 @@ let order = 0;
   }
   a.row:focus-visible { outline: none; }
   a.row:focus-visible .ring { box-shadow: 0 0 0 3px var(--ground), 0 0 0 5px var(--ink); }
+
+  /* Selected stop (first tap on touch): its host and an Open cue appear, the other stops fade, and
+     so do the lines that don't reach it: the other line's rail and, for a home-only stop, the
+     Internet line. The second tap opens it. */
+  .host, .open { display: none; }
+  .host { color: var(--ink-faint); font: 0.78rem/1.4 var(--mono); overflow-wrap: anywhere; }
+  .open {
+    align-items: center;
+    gap: 0.3rem;
+    justify-self: start;
+    margin-top: 0.45rem;
+    padding: 0.3rem 0.75rem 0.2rem;
+    border-radius: 999px;
+    background: var(--ink);
+    color: var(--ground);
+    font-size: 0.8125rem;
+    font-weight: 700;
+  }
+  .row[data-selected] .host { display: block; }
+  .row[data-selected] .open { display: inline-flex; }
+  .row[data-selected] .st { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
+  .row[data-selected] .ring { box-shadow: 0 0 0 4px color-mix(in srgb, var(--c) 25%, transparent); }
+
+  .row, .name, li::before, li::after, .ways :is(.l, .term, .tunnel-label) {
+    transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .strip:has([data-selected]) .row:not([data-selected]) { opacity: 0.3; }
+  .strip:has(.line[data-line="apps"] [data-selected]) li::after,
+  .strip:has(.line[data-line="apps"] [data-selected]) .ways .admin,
+  .strip:has(.line[data-line="admin"] [data-selected]) .line[data-line="apps"] li::before,
+  .strip:has(.line[data-line="admin"] [data-selected]) .ways .apps,
+  .strip:has(.stop[data-access="private"] [data-selected]) .ways :is(.tunnel, .tunnel-label) { opacity: 0.2; }
+  .strip:has(.line[data-line="apps"] [data-selected]) .line[data-line="admin"] .name,
+  .strip:has(.line[data-line="admin"] [data-selected]) .line[data-line="apps"] .name { opacity: 0.3; }
 </style>

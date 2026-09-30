@@ -23,7 +23,7 @@ STORY: The visitor sees how a request reaches the Pi and where each service sits
 
 FIRST VIEWPORT: Compact header row: `lichnovsky.eu` large with Dominik's name, role, a one-line description (self-hosted services, GitOps) and a guide matched to the input (point on the map, tap on the strip); overall status and the repo link at the right. Below it the full-width map (desktop ≥1000px): ways in on the left converging at the rpi-01 interchange centre-left, Apps line up to the right with 5 stations (lichnovsky.eu "you are here", Vaultwarden, Papra, Jellyfin, Immich opening soon), Admin line down to the right with 4. Stations show name and description; hosts appear on pointing; sign-in is an outlined `sign-in*` tag; home-only is the blue ring; the key explains all of it, and a "Mind the gap" line under it names what is still under construction. Phones get a vertical line-strip diagram, the in-carriage version of the same map.
 
-SIGNATURE INTERACTION: Hovering or focusing a station lights its real route and dims the rest; a home-only station turns the Internet line off. On load, the lines draw from the ways in through the interchange to the ends, then the status dots light in reading order. Reduced motion shows the finished map.
+SIGNATURE INTERACTION: Hovering, focusing or (on touch) a first tap on a station lights its real route and dims the rest, a second tap opens it; a home-only station turns the Internet line off. On load, the lines draw from the ways in through the interchange to the ends, then the status dots light in reading order. Reduced motion shows the finished map.
 
 FORM: Line Map, candidate 1 of 7 on the ordered list (chosen as Impeccable's pick over the roll); seed key 7af4d494.
 

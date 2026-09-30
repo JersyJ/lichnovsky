@@ -200,13 +200,13 @@ function layout(s: Placed): [Row, number][] {
   .st-note { fill: var(--ink-faint); font-size: 14.5px; font-weight: 600; text-anchor: middle; }
   /* Hosts are for the curious: they appear on the station being pointed at. */
   .st-host { fill: var(--ink-faint); font: 14.5px var(--mono); text-anchor: middle; opacity: 0; transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
-  .station:is(:hover, :focus-visible) .st-host { opacity: 1; }
+  .station:is(:hover, :focus-visible, [data-selected]) .st-host { opacity: 1; }
   .station[data-planned] .st-name { fill: var(--ink-faint); }
   .here rect { fill: var(--ink); }
   .here text { fill: var(--ground); font-size: 14px; font-weight: 700; text-anchor: middle; letter-spacing: 0.04em; text-transform: uppercase; }
 
   .station:focus-visible .ring { stroke-width: 5; }
-  .station:focus-visible .st-name { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
+  .station:is(:focus-visible, [data-selected]) .st-name { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
   a.station:hover .st-name { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
 
   /* Between 1000 and 1120px the map renders at about 0.76 scale: lift the small text so nothing
@@ -219,12 +219,12 @@ function layout(s: Placed): [Row, number][] {
   /* Route: pointing at a station lights the way a request takes to it and dims the rest.
      A home-only station isn't carried by the tunnel, so the Internet line stays dark. */
   .way, .out, .station, .pi { transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
-  svg:has(a.station:is(:hover, :focus-visible)) :is(.way, .out, .station) { opacity: 0.16; }
-  svg:has(a.station[data-line="apps"]:is(:hover, :focus-visible)) .out[data-line="apps"],
-  svg:has(a.station[data-line="admin"]:is(:hover, :focus-visible)) .out[data-line="admin"],
-  svg:has(a.station:is(:hover, :focus-visible)) :is(.way[data-way="home"], .way[data-way="tailscale"]),
-  svg:has(a.station:not([data-access="private"]):is(:hover, :focus-visible)) .way[data-way="tunnel"],
-  svg:has(a.station:is(:hover, :focus-visible)) .station:is(:hover, :focus-visible) { opacity: 1; }
+  svg:has(a.station:is(:hover, :focus-visible, [data-selected])) :is(.way, .out, .station) { opacity: 0.16; }
+  svg:has(a.station[data-line="apps"]:is(:hover, :focus-visible, [data-selected])) .out[data-line="apps"],
+  svg:has(a.station[data-line="admin"]:is(:hover, :focus-visible, [data-selected])) .out[data-line="admin"],
+  svg:has(a.station:is(:hover, :focus-visible, [data-selected])) :is(.way[data-way="home"], .way[data-way="tailscale"]),
+  svg:has(a.station:not([data-access="private"]):is(:hover, :focus-visible, [data-selected])) .way[data-way="tunnel"],
+  svg:has(a.station:is(:hover, :focus-visible, [data-selected])) .station:is(:hover, :focus-visible, [data-selected]) { opacity: 1; }
 
   /* Drawing in: the ways in first, then through the Pi out to the ends of both lines. */
   @media (prefers-reduced-motion: no-preference) {

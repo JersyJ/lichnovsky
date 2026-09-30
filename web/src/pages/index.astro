@@ -15,7 +15,7 @@ const signIn = lines.some((l) => l.services.some((s) => s.access === "sign-in" &
         <p class="who">Dominik Lichnovsky <span>DevOps / Platform engineer</span></p>
         <p class="about">Self-hosted services, deployed with GitOps.
           <span class="hint pointer">Point at a station to see the route, click to open it.</span>
-          <span class="hint touch">Tap a station to open it.</span></p>
+          <span class="hint touch">Tap a station to see the route, tap again to open it.</span></p>
       </div>
       <div class="side">
         <Status />
@@ -181,6 +181,25 @@ const signIn = lines.some((l) => l.services.some((s) => s.access === "sign-in" &
   // style attribute, which the Content-Security-Policy doesn't allow.
   document.querySelectorAll<HTMLElement | SVGElement>("[data-i]")
     .forEach((el) => el.style.setProperty("--i", el.dataset.i!));
+
+  // Touch: the first tap on a station selects it (its route lights up, like pointing with a mouse),
+  // the second opens it; tapping anywhere else, or Escape, clears it. Mouse and keyboard open at once.
+  let touch = false;
+  addEventListener("pointerdown", (e) => { touch = e.pointerType !== "mouse"; }, { capture: true });
+  let selected: Element | null = null;
+  const select = (el: Element | null) => {
+    selected?.removeAttribute("data-selected");
+    selected = el;
+    el?.setAttribute("data-selected", "");
+  };
+  document.addEventListener("click", (e) => {
+    const station = (e.target as Element).closest("a.station, a.row");
+    if (!station) return select(null);
+    if (!touch || station === selected) return;
+    e.preventDefault();
+    select(station);
+  });
+  addEventListener("keydown", (e) => { if (e.key === "Escape") select(null); });
 
   // Rotate the announcements every 7 s; the live status one stays up while something is down.
   const board = document.getElementById("notice")!;
