@@ -1,23 +1,36 @@
 ---
-// The network map (wide screens): three ways in meet at the Pi, the Apps and Admin lines run out to
-// a station per service. Geometry is fixed in viewBox units; stations are spread along each line
-// from the data, labels alternate above and below like on a transit diagram. Hosts show when a
-// station is pointed at.
+// The network map: three ways in meet at the Pi, the Apps and Admin lines run out to a station per
+// service. Geometry is fixed in viewBox units; stations are spread along each line from the data,
+// labels alternate above and below like on a transit diagram. Hosts show when a station is pointed
+// at. `compact` is the same map redrawn for landscape phones: a narrower drawing (the ways in say
+// in words what the ticks and notes say on the wide one) with larger type, so it stays readable
+// when it's under 1000px wide.
 import { lines, host, stationLabel as label, type Service } from "../data/services";
 
+interface Props { compact?: boolean }
+const { compact = false } = Astro.props;
+
+// Everything that differs between the two drawings. x positions; y is shared.
+const G = compact
+  ? { width: 1040, height: 560, term: 40, text: 54, bend: 190, pi: 370, start: 620, end: 960, hit: 160,
+      first: { below: 42, above: -26 }, k: 1.2 }
+  : { width: 1240, height: 550, term: 60, text: 52, bend: 290, pi: 470, start: 720, end: 1140, hit: 144,
+      first: { below: 38, above: -22 }, k: 1 };
+const piC = G.pi + 22;               // interchange centre
+const out = G.pi + 42;               // where the lines leave it
+const turn = out + 18;               // ... and start their 45° climb or drop
+
 const LINE_Y = { apps: 140, admin: 460 } as const;
-const START = 720;
-const END = 1140;
 
 type Placed = Service & { x: number; y: number; above: boolean; line: "apps" | "admin"; i: number };
 
 let order = 0;
 const placed: Placed[] = lines.flatMap((line) => {
   const n = line.services.length;
-  const step = n > 1 ? (END - START) / (n - 1) : 0;
+  const step = n > 1 ? (G.end - G.start) / (n - 1) : 0;
   return line.services.map((s, k) => ({
     ...s,
-    x: Math.round(START + k * step),
+    x: Math.round(G.start + k * step),
     y: LINE_Y[line.id],
     // Apps start above the line, Admin below, then alternate.
     above: line.id === "apps" ? k % 2 === 0 : k % 2 === 1,
@@ -29,14 +42,14 @@ const placed: Placed[] = lines.flatMap((line) => {
 // Each line is built up to its last open station; beyond it, under construction (dashed).
 const onLine = (id: "apps" | "admin") => placed.filter((s) => s.line === id);
 const lastOpen = (id: "apps" | "admin") =>
-  onLine(id).filter((s) => !s.planned).at(-1)?.x ?? START;
-const lastAny = (id: "apps" | "admin") => onLine(id).at(-1)?.x ?? START;
+  onLine(id).filter((s) => !s.planned).at(-1)?.x ?? G.start;
+const lastAny = (id: "apps" | "admin") => onLine(id).at(-1)?.x ?? G.start;
 
 // Label rows and the spacing between neighbours (the larger of the two rows' gaps). The host row
 // is outermost so it can appear on hover without moving the rest.
 type Row = "name" | "desc" | "tag" | "note" | "here" | "host";
 const GAP: Record<Row, number> = { name: 0, desc: 22, tag: 23, note: 20, here: 22, host: 25 };
-const gap = (a: Row, b: Row) => Math.max(GAP[a], GAP[b]);
+const gap = (a: Row, b: Row) => Math.round(Math.max(GAP[a], GAP[b]) * G.k);
 function layout(s: Placed): [Row, number][] {
   const rows: Row[] = ["name", "desc"];
   if (s.self) rows.push("here");
@@ -46,14 +59,14 @@ function layout(s: Placed): [Row, number][] {
     rows.push("host");
   }
   if (!s.above) {
-    let y = 38;
+    let y = G.first.below;
     return rows.map((r, k) => [r, k === 0 ? y : (y += gap(rows[k - 1], r))]);
   }
-  // Above: the row nearest the line sits at -22 and the rest stack upward; the host goes above the
+  // Above: the row nearest the line sits closest and the rest stack upward; the host goes above the
   // name, a tag/note/pill between the description and the line.
   const inner = rows.filter((r) => r === "tag" || r === "note" || r === "here");
   const order: Row[] = [...(rows.includes("host") ? ["host" as Row] : []), "name", "desc", ...inner];
-  let y = -22;
+  let y = G.first.above;
   const out: [Row, number][] = [];
   for (let k = order.length - 1; k >= 0; k--) {
     out.unshift([order[k], y]);
@@ -61,57 +74,92 @@ function layout(s: Placed): [Row, number][] {
   }
   return out;
 }
+
+// A way in: from its terminus, straight or bent 45° into the interchange.
+const way = (y: number, to: number) =>
+  y === to ? `M${G.term} ${y} H${G.pi + 2}` : `M${G.term} ${y} H${G.bend} L${G.pi - 20} ${to} H${G.pi + 2}`;
+const titleId = compact ? "map-title-compact" : "map-title";
 ---
-<figure class="map" aria-label="Network map of lichnovsky.eu">
-  <svg viewBox="0 30 1240 550" role="group" aria-labelledby="map-title">
-    <title id="map-title">How requests reach the Raspberry Pi, and the services it runs</title>
+<figure class:list={["map", { compact }]} aria-label="Network map of lichnovsky.eu">
+  <svg viewBox={`0 30 ${G.width} ${G.height}`} role="group" aria-labelledby={titleId}>
+    <title id={titleId}>How requests reach the Raspberry Pi, and the services it runs</title>
 
     <!-- Ways in -->
     <g class="way" data-way="tunnel">
-      <path class="line" pathLength="1" d="M60 110 H290 L450 270 H472" />
-      <rect class="terminus" x="56" y="92" width="8" height="36" />
-      <rect class="tick" x="192" y="92" width="6" height="12" />
-      <rect class="tick" x="272" y="92" width="6" height="12" />
-      <text class="way-name" x="52" y="80">Internet</text>
-      <text class="tick-name" x="195" y="82">Cloudflare</text>
-      <text class="tick-name" x="275" y="82">Tunnel</text>
-      <text class="way-note" x="195" y="144">WAF</text>
-      <text class="way-note" x="195" y="162">Access</text>
-      <text class="way-note cf" x="268" y="144">cloudflared</text>
+      <path class="line" pathLength="1" d={way(110, 270)} />
+      <rect class="terminus" x={G.term - 4} y="92" width="8" height="36" />
+      {compact ? (
+        <>
+          <text class="way-name" x={G.text} y="66">Internet</text>
+          <text class="way-note start" x={G.text} y="92">Cloudflare Tunnel</text>
+        </>
+      ) : (
+        <>
+          <rect class="tick" x="192" y="92" width="6" height="12" />
+          <rect class="tick" x="272" y="92" width="6" height="12" />
+          <text class="way-name" x="52" y="80">Internet</text>
+          <text class="tick-name" x="195" y="82">Cloudflare</text>
+          <text class="tick-name" x="275" y="82">Tunnel</text>
+          <text class="way-note" x="195" y="144">WAF</text>
+          <text class="way-note" x="195" y="162">Access</text>
+          <text class="way-note" x="268" y="144">cloudflared</text>
+        </>
+      )}
     </g>
     <g class="way" data-way="home">
-      <path class="line" pathLength="1" d="M60 300 H472" />
-      <rect class="terminus" x="56" y="282" width="8" height="36" />
-      <text class="way-name" x="52" y="270">Home LAN</text>
-      <text class="way-note" x="52" y="336">straight to the Pi</text>
+      <path class="line" pathLength="1" d={way(300, 300)} />
+      <rect class="terminus" x={G.term - 4} y="282" width="8" height="36" />
+      {compact ? (
+        <>
+          <text class="way-name" x={G.text} y="256">Home LAN</text>
+          <text class="way-note start" x={G.text} y="282">straight to the Pi</text>
+        </>
+      ) : (
+        <>
+          <text class="way-name" x="52" y="270">Home LAN</text>
+          <text class="way-note start" x="52" y="336">straight to the Pi</text>
+        </>
+      )}
     </g>
     <g class="way" data-way="tailscale">
-      <path class="line" pathLength="1" d="M60 490 H290 L450 330 H472" />
-      <rect class="terminus" x="56" y="472" width="8" height="36" />
-      <rect class="tick" x="212" y="476" width="6" height="12" />
-      <text class="way-name" x="52" y="460">Anywhere</text>
-      <text class="tick-name" x="215" y="466">Tailscale</text>
-      <text class="way-note" x="215" y="526">private network</text>
+      <path class="line" pathLength="1" d={way(490, 330)} />
+      <rect class="terminus" x={G.term - 4} y="472" width="8" height="36" />
+      {compact ? (
+        <>
+          <text class="way-name" x={G.text} y="446">Anywhere</text>
+          <text class="way-note start" x={G.text} y="472">over Tailscale</text>
+        </>
+      ) : (
+        <>
+          <rect class="tick" x="212" y="476" width="6" height="12" />
+          <text class="way-name" x="52" y="460">Anywhere</text>
+          <text class="tick-name" x="215" y="466">Tailscale</text>
+          <text class="way-note" x="215" y="526">private network</text>
+        </>
+      )}
     </g>
 
     <!-- Lines out of the Pi, each named where it leaves -->
     <g class="out" data-line="apps">
-      <path class="line" pathLength="1" d={`M512 280 H530 L670 140 H${lastOpen("apps")}`} />
+      <path class="line" pathLength="1" d={`M${out} 280 H${turn} L${turn + 140} 140 H${lastOpen("apps")}`} />
       {lastAny("apps") > lastOpen("apps") &&
         <path class="line planned" d={`M${lastOpen("apps")} 140 H${lastAny("apps")}`} />}
-      <g class="bullet"><rect x="532" y="152" width="60" height="24" rx="4" /><text x="562" y="169">Apps</text></g>
+      <g class="bullet"><rect x={out + 20} y="152" width="60" height="24" rx="4" /><text x={out + 50} y="169">Apps</text></g>
     </g>
     <g class="out" data-line="admin">
-      <path class="line" pathLength="1" d={`M512 320 H530 L670 460 H${lastAny("admin")}`} />
-      <g class="bullet"><rect x="532" y="432" width="68" height="24" rx="4" /><text x="566" y="449">Admin</text></g>
+      <path class="line" pathLength="1" d={`M${out} 320 H${turn} L${turn + 140} 460 H${lastAny("admin")}`} />
+      {/* On the compact map the badge sits right of the diagonal: left of it, it would crowd the Pi's label. */}
+      {compact
+        ? <g class="bullet"><rect x={turn + 118} y="360" width="68" height="24" rx="4" /><text x={turn + 152} y="377">Admin</text></g>
+        : <g class="bullet"><rect x={out + 20} y="432" width="68" height="24" rx="4" /><text x={out + 54} y="449">Admin</text></g>}
     </g>
 
     <!-- The interchange -->
     <g class="pi">
-      <rect class="interchange" x="470" y="250" width="44" height="100" rx="22" />
-      <text class="pi-note" x="492" y="236">Traefik</text>
-      <text class="pi-name" x="492" y="392">rpi-01</text>
-      <text class="pi-note" x="492" y="414">Raspberry Pi 5, k3s</text>
+      <rect class="interchange" x={G.pi} y="250" width="44" height="100" rx="22" />
+      <text class="pi-note" x={piC} y="236">Traefik</text>
+      <text class="pi-name" x={piC} y="392">rpi-01</text>
+      <text class="pi-note" x={piC} y={compact ? 418 : 414}>Raspberry Pi 5, k3s</text>
     </g>
 
     <!-- Stations -->
@@ -123,7 +171,7 @@ function layout(s: Placed): [Row, number][] {
       const at = (r: Row) => s.y + (rows.find(([row]) => row === r)?.[1] ?? 0);
       const body = (
         <>
-          <rect class="hit" x={s.x - 72} y={top} width="144" height={bottom - top} />
+          <rect class="hit" x={s.x - G.hit / 2} y={top} width={G.hit} height={bottom - top} />
           <circle class="ring" cx={s.x} cy={s.y} r="12" />
           {!s.planned && <circle class="dot" cx={s.x} cy={s.y} r="5.5" />}
           <text class="st-name" x={s.x} y={at("name")}>{s.name}</text>
@@ -173,7 +221,7 @@ function layout(s: Placed): [Row, number][] {
   .way-name { font-size: 20px; font-weight: 700; }
   .tick-name { font-size: 17px; font-weight: 600; text-anchor: middle; }
   .way-note { fill: var(--ink-faint); font-size: 14.5px; text-anchor: middle; }
-  .way[data-way="home"] .way-note { text-anchor: start; }
+  .way-note.start { text-anchor: start; }
 
   .interchange { fill: var(--ground); stroke: var(--ink); stroke-width: 5; }
   .pi-name { font-size: 24px; font-weight: 800; text-anchor: middle; letter-spacing: -0.01em; }
@@ -216,14 +264,13 @@ function layout(s: Placed): [Row, number][] {
     .here, .tag, .bullet { transform-box: fill-box; transform-origin: center; transform: scale(1.15); }
   }
 
-  /* Landscape phones (860–1000px) draw the map at about 0.67 scale: lift the rest of the small text
-     and the pills too. */
-  @media (max-width: 62.49rem) {
-    .st-desc, .tick-name, .way-note, .st-note, .st-host, .pi-note { font-size: 18px; }
-    .here, .tag, .bullet { transform-box: fill-box; transform-origin: center; transform: scale(1.2); }
-    .here text, .tag text { font-size: 15px; }
-    .way-note.cf { display: none; }   /* no room beside "WAF"; the Tunnel label says it */
-  }
+  /* The compact map (landscape phones) renders at 0.6–0.95 scale: larger type throughout keeps the
+     smallest text at 12px from a 667px-wide screen up. */
+  .compact .way-name, .compact .st-name { font-size: 22px; }
+  .compact .pi-name { font-size: 26px; }
+  .compact :is(.st-desc, .way-note, .st-note, .st-host, .pi-note) { font-size: 20px; }
+  .compact :is(.here, .tag, .bullet) { transform-box: fill-box; transform-origin: center; transform: scale(1.3); }
+  .compact :is(.here, .tag) text, .compact .bullet text { font-size: 15.5px; }
 
   /* Route: pointing at a station lights the way a request takes to it and dims the rest.
      A home-only station isn't carried by the tunnel, so the Internet line stays dark. */

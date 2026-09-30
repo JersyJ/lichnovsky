@@ -27,6 +27,7 @@ const signIn = lines.some((l) => l.services.some((s) => s.access === "sign-in" &
     </header>
 
     <Map />
+    <Map compact />
     <Strip />
 
     <section class="key" aria-labelledby="key-title">
@@ -100,17 +101,19 @@ const signIn = lines.some((l) => l.services.some((s) => s.access === "sign-in" &
 
   :global(.map) { margin-top: clamp(1rem, 3vw, 2.5rem); }
   :global(.strip) { margin-top: 1.5rem; }
-  /* The map wherever it can be read at the width it's drawn: from 1000px, and on landscape screens
-     from 860px (phones on their side), where Map.astro lifts its small text to stay at 12px or more.
-     Everywhere else the strip. `main` outranks the components' own display rules. */
-  @media (max-width: 62.49rem) and (orientation: portrait), (max-width: 53.74rem) {
-    main :global(.map) { display: none; }
+  /* One drawing at a time: the map from 1000px, the compact map on any narrower landscape screen
+     (phones on their side), the strip on narrower portrait ones. `main` outranks the components'
+     own display rules. */
+  main :global(.map.compact), main :global(.strip) { display: none; }
+  @media (max-width: 62.49rem) {
+    main :global(.map:not(.compact)) { display: none; }
   }
-  @media (min-width: 62.5rem), (min-width: 53.75rem) and (orientation: landscape) {
-    main :global(.strip) { display: none; }
-  }
-  @media (min-width: 53.75rem) and (max-width: 62.49rem) and (orientation: landscape) {
+  @media (max-width: 62.49rem) and (orientation: landscape) {
+    main :global(.map.compact) { display: block; }
     main { --gutter: 1rem; }
+  }
+  @media (max-width: 62.49rem) and (orientation: portrait) {
+    main :global(.strip) { display: block; }
   }
 
   .key {
@@ -164,8 +167,8 @@ const signIn = lines.some((l) => l.services.some((s) => s.access === "sign-in" &
   .notice .plain { color: var(--ink-soft); font-weight: 600; }
   @media (prefers-reduced-motion: reduce) { .notice > span { transition: none; } }
 
-  /* Phones: the key and the notice line up with the centred strip (18rem, Strip.astro). */
-  @media (max-width: 39.99rem) {
+  /* Wherever the strip shows, the key and the notice line up with it (18rem, Strip.astro). */
+  @media (max-width: 62.49rem) and (orientation: portrait) {
     .key { grid-template-columns: 1fr; gap: 0.6rem; }
     .key > *, .notice { width: min(100%, 18rem); margin-inline: auto; }
     .key > ul { gap: 0.55rem 1.1rem; }
