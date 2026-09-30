@@ -77,7 +77,7 @@ function layout(s: Placed): [Row, number][] {
       <text class="tick-name" x="275" y="82">Tunnel</text>
       <text class="way-note" x="195" y="144">WAF</text>
       <text class="way-note" x="195" y="162">Access</text>
-      <text class="way-note" x="268" y="144">cloudflared</text>
+      <text class="way-note cf" x="268" y="144">cloudflared</text>
     </g>
     <g class="way" data-way="home">
       <path class="line" pathLength="1" d="M60 300 H472" />
@@ -213,7 +213,16 @@ function layout(s: Placed): [Row, number][] {
      drops under 12px. Station spacing leaves room for the wider labels. */
   @media (max-width: 69.99rem) {
     .way-note, .st-note, .st-host, .pi-note { font-size: 16px; }
-    .here, .tag { transform-box: fill-box; transform-origin: center; transform: scale(1.15); }
+    .here, .tag, .bullet { transform-box: fill-box; transform-origin: center; transform: scale(1.15); }
+  }
+
+  /* Landscape phones (860–1000px) draw the map at about 0.67 scale: lift the rest of the small text
+     and the pills too. */
+  @media (max-width: 62.49rem) {
+    .st-desc, .tick-name, .way-note, .st-note, .st-host, .pi-note { font-size: 18px; }
+    .here, .tag, .bullet { transform-box: fill-box; transform-origin: center; transform: scale(1.2); }
+    .here text, .tag text { font-size: 15px; }
+    .way-note.cf { display: none; }   /* no room beside "WAF"; the Tunnel label says it */
   }
 
   /* Route: pointing at a station lights the way a request takes to it and dims the rest.

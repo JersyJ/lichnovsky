@@ -100,9 +100,18 @@ const signIn = lines.some((l) => l.services.some((s) => s.access === "sign-in" &
 
   :global(.map) { margin-top: clamp(1rem, 3vw, 2.5rem); }
   :global(.strip) { margin-top: 1.5rem; }
-  /* From 1000px the map; narrower gets the strip. Map.astro keeps its small text at 12px or more. */
-  @media (max-width: 62.49rem) { :global(.map) { display: none; } }
-  @media (min-width: 62.5rem) { :global(.strip) { display: none; } }
+  /* The map wherever it can be read at the width it's drawn: from 1000px, and on landscape screens
+     from 860px (phones on their side), where Map.astro lifts its small text to stay at 12px or more.
+     Everywhere else the strip. `main` outranks the components' own display rules. */
+  @media (max-width: 62.49rem) and (orientation: portrait), (max-width: 53.74rem) {
+    main :global(.map) { display: none; }
+  }
+  @media (min-width: 62.5rem), (min-width: 53.75rem) and (orientation: landscape) {
+    main :global(.strip) { display: none; }
+  }
+  @media (min-width: 53.75rem) and (max-width: 62.49rem) and (orientation: landscape) {
+    main { --gutter: 1rem; }
+  }
 
   .key {
     display: grid;
