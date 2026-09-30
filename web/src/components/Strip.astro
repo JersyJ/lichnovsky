@@ -46,7 +46,7 @@ let order = 0;
           </>
         );
         return (
-          <li class="stop" data-access={s.access} data-planned={s.planned ? "" : undefined} style={`--i: ${i}`}>
+          <li class="stop" data-access={s.access} data-planned={s.planned ? "" : undefined} data-i={i}>
             {s.planned
               ? <div class="row" aria-label={label(s)}>{inner}</div>
               : <a class="row" href={s.url} data-monitor={s.monitor} data-self={s.self ? "" : undefined}
@@ -145,7 +145,7 @@ let order = 0;
     background: var(--ink-faint);
     opacity: 0.35;
     transition: background-color 0.4s, opacity 0.4s;
-    transition-delay: calc(var(--i) * 70ms);
+    transition-delay: calc(var(--i, 0) * 70ms);
   }
   .stop[data-planned] .dot { display: none; }
   [data-state] .dot { opacity: 1; }

@@ -32,11 +32,11 @@ const signIn = lines.some((l) => l.services.some((s) => s.access === "sign-in" &
     <section class="key" aria-labelledby="key-title">
       <h2 id="key-title">Key</h2>
       <ul class="lines">
-        <li><i style="--c: var(--tunnel)"></i>Internet <span>through the Cloudflare Tunnel</span></li>
-        <li><i style="--c: var(--home)"></i>Home LAN</li>
-        <li><i style="--c: var(--tailscale)"></i>Anywhere <span>over Tailscale, privately</span></li>
-        <li><i style="--c: var(--apps)"></i>Apps</li>
-        <li><i style="--c: var(--admin)"></i>Admin</li>
+        <li><i class="sw-tunnel"></i>Internet <span>through the Cloudflare Tunnel</span></li>
+        <li><i class="sw-home"></i>Home LAN</li>
+        <li><i class="sw-tailscale"></i>Anywhere <span>over Tailscale, privately</span></li>
+        <li><i class="sw-apps"></i>Apps</li>
+        <li><i class="sw-admin"></i>Admin</li>
       </ul>
       <ul class="stations">
         <li><b data-s="up"></b>running</li>
@@ -126,6 +126,11 @@ const signIn = lines.some((l) => l.services.some((s) => s.access === "sign-in" &
   .lines li { color: var(--ink); font-weight: 600; }
   .lines span { color: var(--ink-soft); font-weight: 400; }
   i { width: 1.75rem; height: 0.4375rem; background: var(--c); }
+  .sw-tunnel { --c: var(--tunnel); }
+  .sw-home { --c: var(--home); }
+  .sw-tailscale { --c: var(--tailscale); }
+  .sw-apps { --c: var(--apps); }
+  .sw-admin { --c: var(--admin); }
   b {
     display: grid;
     place-items: center;
@@ -172,6 +177,11 @@ const signIn = lines.some((l) => l.services.some((s) => s.access === "sign-in" &
 </style>
 
 <script>
+  // Stagger order for the map's entrance and the status sweep. Set from data-i here rather than a
+  // style attribute, which the Content-Security-Policy doesn't allow.
+  document.querySelectorAll<HTMLElement | SVGElement>("[data-i]")
+    .forEach((el) => el.style.setProperty("--i", el.dataset.i!));
+
   // Rotate the announcements every 7 s; the live status one stays up while something is down.
   const board = document.getElementById("notice")!;
   const notes = [...board.children] as HTMLElement[];

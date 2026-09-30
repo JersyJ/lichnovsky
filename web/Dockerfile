@@ -23,15 +23,13 @@ COPY --link nginx.conf /etc/nginx/conf.d/default.conf
 
 COPY --link --from=build /src/dist /srv/site
 
-# Check the pages exist and the config parses. The in-cluster status host doesn't resolve at
-# build time, so the check runs against a copy that points it at localhost.
+# Check the pages exist and the config parses (the status host is resolved per request, so
+# nothing needs to resolve here).
 RUN <<EOT
 set -e
 test -s /srv/site/index.html
 test -s /srv/site/404.html
-sed 's/uptime-kuma\.monitoring\.svc\.cluster\.local/127.0.0.1/' /etc/nginx/conf.d/default.conf > /tmp/site.conf
-sed 's|/etc/nginx/conf.d/\*\.conf|/tmp/site.conf|' /etc/nginx/nginx.conf > /tmp/nginx.conf
-nginx -t -q -c /tmp/nginx.conf
+nginx -t -q
 rm -rf /tmp/*
 EOT
 

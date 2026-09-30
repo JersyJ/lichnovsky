@@ -48,3 +48,9 @@ The bot's commit means your local `main` is one commit behind: `git pull --rebas
 - `GET /healthz` returns 200: the probes and the external heartbeat use it.
 - Send `Cache-Control` headers: Cloudflare caches the site by them, and would cache a page for 2 hours
   without one. `nginx.conf` does this: hashed assets in `/_astro/` forever, pages for 60 s.
+- Keep the Content-Security-Policy working: Astro writes script and style hashes into each page
+  (`security.csp` in `astro.config.mjs`), so no inline `style="…"` attributes and no external
+  scripts, styles or fonts. nginx adds `frame-ancestors` and the other security headers.
+- The status proxy resolves Uptime Kuma per request via the cluster DNS (`10.43.0.10`, the k3s
+  default): nginx starts even when that name doesn't resolve. Change `resolver` if the cluster's
+  service CIDR ever changes.
