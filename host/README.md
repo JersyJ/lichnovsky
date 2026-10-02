@@ -6,7 +6,7 @@ Raspberry Pi OS; all are safe to run again.
 | File | Where it goes / what it does |
 |---|---|
 | `01-set-hostname.sh` | renames the Pi to `rpi-01` through cloud-init; run before k3s |
-| `02-setup-pi.sh` | memory cgroup, packages, journald cap, Wi-Fi power saving off, SD card as `/srv/backup`, `/srv/media` |
+| `02-setup-pi.sh` | memory cgroup, packages, inotify limits, journal kept on disk, Wi-Fi power saving off, host DNS, SD card as `/srv/backup`, `/srv/media` |
 | `03-install-k3s.sh` | installs k3s with the two files below and waits for the node; also upgrades it (bump `K3S_VERSION`) |
 | `journald-homelab.conf` | installed by `02-setup-pi.sh` |
 | `k3s-config.yaml` | `/etc/rancher/k3s/config.yaml`, installed by `03-install-k3s.sh` |

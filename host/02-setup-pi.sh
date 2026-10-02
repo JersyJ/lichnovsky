@@ -7,7 +7,7 @@ set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
 step() { printf '\n== %s\n' "$*"; }
 
-step "1/7 memory cgroup (Pi firmware disables it by default; k3s needs it to enforce limits)"
+step "1/9 memory cgroup (Pi firmware disables it by default; k3s needs it to enforce limits)"
 CMDLINE=/boot/firmware/cmdline.txt
 if grep -q 'cgroup_enable=memory' "$CMDLINE"; then
   echo "already set"
@@ -18,22 +18,30 @@ else
 fi
 cat "$CMDLINE"
 
-step "2/7 packages: security updates + tools"
+step "2/9 packages: security updates + tools"
 apt-get update -qq
 DEBIAN_FRONTEND=noninteractive apt-get install -y -qq unattended-upgrades parted smartmontools nvme-cli jq >/dev/null
 echo 'unattended-upgrades unattended-upgrades/enable_auto_updates boolean true' | debconf-set-selections
 dpkg-reconfigure -f noninteractive unattended-upgrades
 echo "unattended-upgrades enabled"
 
-step "3/7 firmware (EEPROM) update"
+step "3/9 firmware (EEPROM) update"
 rpi-eeprom-update -a || true   # stages a newer bootloader if there is one; applied on reboot
 
-step "4/7 journald size cap (1 GB, 1 month)"
+step "4/9 inotify limits (the default 128 per user is used up by k3s and one containerd-shim per pod)"
+install -D -m 0644 /dev/stdin /etc/sysctl.d/90-inotify.conf <<'EOF'
+fs.inotify.max_user_instances = 512
+EOF
+sysctl -q --system
+cat /proc/sys/fs/inotify/max_user_instances
+
+step "5/9 journald on disk (survives reboots), capped at 1 GB / 1 month"
 install -D -m 0644 "$HERE/journald-homelab.conf" /etc/systemd/journald.conf.d/homelab.conf
 systemctl restart systemd-journald
-echo "journal capped at 1 GB / 1 month"
+journalctl --flush   # moves this boot's journal from RAM to /var/log/journal
+journalctl --disk-usage
 
-step "5/7 Wi-Fi power saving off (stops latency spikes and dropped connections on a server)"
+step "6/9 Wi-Fi power saving off (stops latency spikes and dropped connections on a server)"
 install -D -m 0644 /dev/stdin /etc/NetworkManager/conf.d/99-wifi-powersave-off.conf <<'EOF'
 [connection]
 # 2 = disable
@@ -41,7 +49,17 @@ wifi.powersave = 2
 EOF
 echo "written. Takes effect after reboot"
 
-step "6/7 backup disk: SD card -> ext4 'backup' at /srv/backup"
+step "7/9 host DNS: public resolvers, not the ones DHCP hands out"
+# DHCP hands out AdGuard, which runs on this Pi. CoreDNS forwards to this host's resolv.conf,
+# so the cluster's DNS would depend on one of its own pods, which isn't running yet at boot.
+install -D -m 0644 /dev/stdin /etc/NetworkManager/conf.d/99-dns.conf <<'EOF'
+[global-dns-domain-*]
+servers=9.9.9.9,1.1.1.1
+EOF
+nmcli general reload   # no flags: re-reads conf.d (dns-full alone ignores it)
+grep nameserver /etc/resolv.conf
+
+step "8/9 backup disk: SD card -> ext4 'backup' at /srv/backup"
 DEV=/dev/mmcblk0
 if blkid -L backup >/dev/null 2>&1; then
   echo "a filesystem labelled 'backup' already exists: $(blkid -L backup); not formatting"
@@ -71,7 +89,7 @@ chown 1000:1000 /srv/backup/restic   # the rest-server pod runs as UID 1000
 chmod 700 /srv/backup/etcd
 df -h /srv/backup
 
-step "7/7 media folder for Jellyfin (on the NVMe)"
+step "9/9 media folder for Jellyfin (on the NVMe)"
 mkdir -p /srv/media
 echo "/srv/media ready"
 

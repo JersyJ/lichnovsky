@@ -100,8 +100,9 @@ the URL. Alertmanager, Argo CD and the heartbeat Worker all post there.
    SD → USB). Optional and faster, but officially "not certified": PCIe Gen 3 with
    `dtparam=pciex1_gen=3` in `/boot/firmware/config.txt`.
 3. **Reserve the IP** `192.168.50.244` for the Pi in the router's DHCP. Ethernet is better than
-   Wi-Fi (copies run at ~13 MB/s over Wi-Fi). The Pi itself keeps using the router for DNS, **not**
-   AdGuard: CoreDNS would otherwise depend on a pod that isn't running yet at boot.
+   Wi-Fi (copies run at ~13 MB/s over Wi-Fi). The Pi itself resolves through 9.9.9.9 and 1.1.1.1,
+   **not** AdGuard (set by `02-setup-pi.sh`): CoreDNS would otherwise depend on a pod that isn't
+   running yet at boot.
 4. **Swap:** Trixie ships a 2 GB zram swap, which is fine (pods don't swap). Don't add a swapfile
    on the SSD.
 
@@ -246,8 +247,8 @@ Values never touch the disk or a command line; they reach `kubeseal` through std
 5. **Router → DHCP → DNS servers:** `192.168.50.244` first, `9.9.9.9` second. The second one keeps
    the house online when the Pi reboots (without ad blocking; clients may also use it at other
    times, so some ads get through). On ASUS, set *Advertise router's IP in addition to
-   user-specified DNS* to **No**. Don't point the router's own WAN DNS at the Pi: the Pi resolves
-   through the router, which would loop at boot.
+   user-specified DNS* to **No**. Leave the router's own WAN DNS alone: pointed at the Pi, the
+   router couldn't resolve anything while the Pi is down.
 6. Switch kubectl to the name: `kubectl config set-cluster lichnovsky --server=https://k8s.lichnovsky.eu:6443`.
    It resolves only through AdGuard and Tailscale, and keeps working if the Pi's IP changes.
 
