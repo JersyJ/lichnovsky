@@ -1,0 +1,111 @@
+# Movies. Settings (quality profiles, naming, root folder, download client) come from configarr.yaml.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: radarr-config
+  namespace: tv
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: radarr
+  namespace: tv
+  labels:
+    app: radarr
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: radarr
+  template:
+    metadata:
+      labels:
+        app: radarr
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch   # don't walk the whole media library on every start
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: radarr
+          image: ghcr.io/home-operations/radarr:6.4.4.10685
+          env:
+            - { name: TZ, value: "Europe/Prague" }
+            - name: RADARR__AUTH__APIKEY
+              valueFrom:
+                secretKeyRef: { name: media, key: RADARR_API_KEY }
+          ports:
+            - name: http
+              containerPort: 7878
+          volumeMounts:
+            - { name: config, mountPath: /config }
+            - { name: media, mountPath: /media }   # same mount as qBittorrent: imports are hardlinks
+            - { name: tmp, mountPath: /tmp }
+          readinessProbe:
+            httpGet: { path: /ping, port: http }
+            periodSeconds: 15
+          livenessProbe:
+            httpGet: { path: /ping, port: http }
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          resources:
+            requests: { cpu: 50m, memory: 256Mi }
+            limits: { memory: 768Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: radarr-config
+        - name: media
+          persistentVolumeClaim:
+            claimName: media-library
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: radarr
+  namespace: tv
+spec:
+  selector:
+    app: radarr
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: radarr
+  namespace: tv
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: radarr.lichnovsky.eu
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: radarr
+                port:
+                  number: 80

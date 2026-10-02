@@ -1,0 +1,111 @@
+# Shows. Settings (quality profiles, naming, root folder, download client) come from configarr.yaml.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: sonarr-config
+  namespace: tv
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sonarr
+  namespace: tv
+  labels:
+    app: sonarr
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: sonarr
+  template:
+    metadata:
+      labels:
+        app: sonarr
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch   # don't walk the whole media library on every start
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: sonarr
+          image: ghcr.io/home-operations/sonarr:4.0.20.3012
+          env:
+            - { name: TZ, value: "Europe/Prague" }
+            - name: SONARR__AUTH__APIKEY
+              valueFrom:
+                secretKeyRef: { name: media, key: SONARR_API_KEY }
+          ports:
+            - name: http
+              containerPort: 8989
+          volumeMounts:
+            - { name: config, mountPath: /config }
+            - { name: media, mountPath: /media }   # same mount as qBittorrent: imports are hardlinks
+            - { name: tmp, mountPath: /tmp }
+          readinessProbe:
+            httpGet: { path: /ping, port: http }
+            periodSeconds: 15
+          livenessProbe:
+            httpGet: { path: /ping, port: http }
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          resources:
+            requests: { cpu: 50m, memory: 256Mi }
+            limits: { memory: 768Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: sonarr-config
+        - name: media
+          persistentVolumeClaim:
+            claimName: media-library
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sonarr
+  namespace: tv
+spec:
+  selector:
+    app: sonarr
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: sonarr
+  namespace: tv
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: sonarr.lichnovsky.eu
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: sonarr
+                port:
+                  number: 80

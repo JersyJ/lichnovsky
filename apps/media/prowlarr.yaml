@@ -1,0 +1,106 @@
+# Indexers: searches torrent sites for Sonarr and Radarr. Its links to them come from configarr.yaml.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: prowlarr-config
+  namespace: tv
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prowlarr
+  namespace: tv
+  labels:
+    app: prowlarr
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: prowlarr
+  template:
+    metadata:
+      labels:
+        app: prowlarr
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: prowlarr
+          image: ghcr.io/home-operations/prowlarr:2.6.5.5623
+          env:
+            - { name: TZ, value: "Europe/Prague" }
+            - name: PROWLARR__AUTH__APIKEY
+              valueFrom:
+                secretKeyRef: { name: media, key: PROWLARR_API_KEY }
+          ports:
+            - name: http
+              containerPort: 9696
+          volumeMounts:
+            - { name: config, mountPath: /config }
+            - { name: tmp, mountPath: /tmp }
+          readinessProbe:
+            httpGet: { path: /ping, port: http }
+            periodSeconds: 15
+          livenessProbe:
+            httpGet: { path: /ping, port: http }
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          resources:
+            requests: { cpu: 20m, memory: 160Mi }
+            limits: { memory: 512Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: prowlarr-config
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prowlarr
+  namespace: tv
+spec:
+  selector:
+    app: prowlarr
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: prowlarr
+  namespace: tv
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: prowlarr.lichnovsky.eu
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: prowlarr
+                port:
+                  number: 80

@@ -61,11 +61,25 @@ case ${1:-} in
   papra)
     seal apps/papra/sealed-papra.yaml papra papra "AUTH_SECRET=$(openssl rand -hex 48)" ;;
 
+  media)                 # API keys for Sonarr/Radarr/Prowlarr + qBittorrent's Web UI password (and its hash)
+    [[ -e apps/media/sealed-media.yaml ]] &&
+      { echo "media secret exists; new keys would break Bazarr/Seerr and qBittorrent keeps its old password" >&2; exit 1; }
+    qbt=$(rand)
+    # qBittorrent's format: PBKDF2-HMAC-SHA512, 100000 rounds, 16-byte salt -> "salt:key" in base64
+    hash=$(printf %s "$qbt" | python3 -c 'import base64,hashlib,os,sys
+salt=os.urandom(16); key=hashlib.pbkdf2_hmac("sha512", sys.stdin.buffer.read(), salt, 100000)
+print(base64.b64encode(salt).decode() + ":" + base64.b64encode(key).decode())')
+    seal apps/media/sealed-media.yaml tv media \
+      "SONARR_API_KEY=$(openssl rand -hex 16)" "RADARR_API_KEY=$(openssl rand -hex 16)" \
+      "PROWLARR_API_KEY=$(openssl rand -hex 16)" \
+      "QBITTORRENT_PASSWORD=$qbt" "QBITTORRENT_PASSWORD_PBKDF2=$hash"
+    echo "qBittorrent login: admin / $qbt   (save it)" ;;
+
   backups)               # one restic password + a rest-server login per namespace, generated together
     [[ -e platform/backups/secrets/sealed-rest-server-htpasswd.yaml ]] &&
       { echo "backup secrets exist; re-generating would lock you out of existing backups" >&2; exit 1; }
     restic=$(rand); htpasswd=""
-    for ns in vaultwarden papra photos monitoring dns; do
+    for ns in vaultwarden papra photos monitoring dns tv; do
       pw=$(rand)
       seal "platform/backups/secrets/sealed-k8up-repo-$ns.yaml" "$ns" k8up-repo \
         "RESTIC_PASSWORD=$restic" "REST_USER=$ns" "REST_PASSWORD=$pw"
@@ -74,6 +88,21 @@ case ${1:-} in
     seal platform/backups/secrets/sealed-rest-server-htpasswd.yaml backups rest-server-htpasswd "htpasswd=$htpasswd"
     echo "RESTIC PASSWORD: $restic   (save it in your password manager AND offline)" ;;
 
-  *) echo "usage: $0 {cloudflare-api-token|cloudflared-token|grafana-admin|alertmanager-notify|argocd-notifications|tailscale-operator-oauth|vaultwarden|papra|backups}" >&2
+  backup-namespace)      # give one more namespace a backup login, keeping the existing ones
+    ns=${2:?usage: $0 backup-namespace <namespace>}
+    [[ -e platform/backups/secrets/sealed-k8up-repo-$ns.yaml ]] &&
+      { echo "$ns already has backup credentials" >&2; exit 1; }
+    # Same restic password as every other namespace, and the current logins, read from the cluster.
+    restic=$(kubectl -n vaultwarden get secret k8up-repo -o jsonpath='{.data.RESTIC_PASSWORD}' | openssl base64 -d -A)
+    htpasswd=$(kubectl -n backups get secret rest-server-htpasswd -o jsonpath='{.data.htpasswd}' | openssl base64 -d -A)
+    [[ -n $restic && -n $htpasswd ]] || { echo "couldn't read the backup secrets from the cluster" >&2; exit 1; }
+    pw=$(rand)
+    seal "platform/backups/secrets/sealed-k8up-repo-$ns.yaml" "$ns" k8up-repo \
+      "RESTIC_PASSWORD=$restic" "REST_USER=$ns" "REST_PASSWORD=$pw"
+    htpasswd+=$'\n'"$ns:{SHA}$(printf %s "$pw" | openssl dgst -sha1 -binary | openssl base64)"$'\n'
+    seal platform/backups/secrets/sealed-rest-server-htpasswd.yaml backups rest-server-htpasswd "htpasswd=$htpasswd"
+    echo "now add a Schedule for $ns (platform/backups/schedules.yaml) and allow it in rest-server's NetworkPolicy" ;;
+
+  *) echo "usage: $0 {cloudflare-api-token|cloudflared-token|grafana-admin|alertmanager-notify|argocd-notifications|tailscale-operator-oauth|vaultwarden|papra|media|backups|backup-namespace <ns>}" >&2
      exit 1 ;;
 esac

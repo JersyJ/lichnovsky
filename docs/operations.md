@@ -13,6 +13,9 @@ all manifests, checks the sync order).
   only those).
 - **New app:** a folder in `apps/` plus an Application in `argocd/`.
 - **Website:** edit `web/` and push; CI builds and deploys it ([web/README.md](../web/README.md)).
+- **Media stack settings** (quality profiles, naming, download client, Prowlarr's app links): edit
+  `apps/media/configarr.yaml` and push. Configarr applies it at :17 every hour, or right away with
+  `kubectl -n tv create job --from=cronjob/configarr configarr-now`.
 
 ## Updates
 
@@ -63,11 +66,16 @@ k3s etcd snapshots (every 12 h) ────────────┴───
 | Manifests, config, sealed secrets | GitHub | every push |
 | Sealed Secrets private key | password manager + offline | after setup, and now and then (rotates every 30 days) |
 | restic password, Grafana password, k3s token | password manager | when created |
-| Vaultwarden, Papra, Uptime Kuma, AdGuard | SD card | daily; 7 daily / 4 weekly / 6 monthly; weekly `restic check` |
+| Vaultwarden, Papra, Uptime Kuma, AdGuard, media stack settings (Sonarr, Radarr, Prowlarr, Bazarr, Seerr, qBittorrent) | SD card | daily; 7 daily / 4 weekly / 6 monthly; weekly `restic check` |
 | etcd (cluster state) | SD card | every 12 h, keep 10 |
-| **Not backed up:** Prometheus/Loki data, Jellyfin config and media, Immich photo library | – | rebuildable, or too big for the card |
+| **Not backed up:** Prometheus/Loki data, Jellyfin config and media (incl. downloads), Immich photo library | – | rebuildable, or too big for the card |
 
 **Lose the restic password and the backups are unreadable.**
+
+**Backing up another namespace:** `scripts/seal.sh backup-namespace <ns>` adds a login for it
+(keeping the others), then add a Schedule in `platform/backups/schedules.yaml` and the namespace to
+the NetworkPolicy in `platform/backups/rest-server.yaml`. k8up backs up every PVC in the namespace;
+opt big or rebuildable ones out with the annotation `k8up.io/backup: "false"`.
 
 The restic pods run as root: the k8up image's own UID can't read files apps write with mode 0600
 (e.g. Vaultwarden's `rsa_key.pem`) and would silently skip them. If the SD card is missing, the
@@ -152,6 +160,35 @@ kubectl -n photos scale deploy/immich-server --replicas=1
 ```
 The Postgres image isn't updated by Renovate: a major version needs CNPG's upgrade procedure, and
 the VectorChord version must stay in Immich's supported range.
+
+## Media stack
+
+```
+Seerr ──request──► Radarr / Sonarr ──search──► Prowlarr ──► indexers (FlareSolverr if tagged)
+                        │ ▲
+                  grab  │ │ import (hardlink, rename)          Bazarr: subtitles next to the video
+                        ▼ │
+                    qBittorrent ──► /media/downloads   ──►   /media/movies, /media/shows ──► Jellyfin
+```
+
+Everything mounts the media volume at `/media`, so paths are the same in every app and an import is
+a hardlink: a finished download is in the library at once and keeps seeding without taking space
+twice. qBittorrent stops seeding at ratio 1 or after 24 h, then Sonarr/Radarr remove the torrent;
+the library copy stays.
+
+- **Indexers** are added by hand in Prowlarr (not in Git: this repository is public); Prowlarr
+  pushes them to Sonarr and Radarr.
+- **Nothing downloads:** Sonarr/Radarr → *Activity → Queue* shows why; *System → Status* lists
+  broken indexers or a failing download client. Prowlarr → *Indexers* → test each.
+- **Import fails with "hardlink"/"permission":** all pods run as UID 1000 and `/srv/media` must
+  belong to it (`sudo chown -R 1000:1000 /srv/media` on the Pi).
+- **Settings drift back:** that's Configarr; change `apps/media/configarr.yaml` instead.
+
+**VPN later:** qBittorrent has no VPN now; it connects from the home IP. To add one, take a provider
+with port forwarding (e.g. ProtonVPN, AirVPN), put a [Gluetun](https://github.com/qdm12/gluetun)
+sidecar into the qBittorrent pod with the provider's WireGuard key (a new `seal.sh` case), and drop
+the `qbittorrent-bt` LoadBalancer and the router forward. All of qBittorrent's traffic then goes
+through the tunnel, and Gluetun's firewall blocks it while the VPN is down.
 
 ## Adding a second Pi
 

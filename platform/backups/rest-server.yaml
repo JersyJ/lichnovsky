@@ -126,7 +126,7 @@ spec:
             matchExpressions:
               - key: kubernetes.io/metadata.name
                 operator: In
-                values: [vaultwarden, papra, photos, monitoring, dns]
+                values: [vaultwarden, papra, photos, monitoring, dns, tv]
       ports:
         - port: 8000
 ---

@@ -1,5 +1,6 @@
 # No public hostname: Cloudflare's terms forbid proxying video. The Pi 5 has no HW encoder, so direct play.
-# Media is a local PersistentVolume, because baseline Pod Security blocks hostPath.
+# Media is a local PersistentVolume, because baseline Pod Security blocks hostPath. The media stack
+# (apps/media) mounts the same claim, read-write.
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -25,6 +26,8 @@ kind: PersistentVolumeClaim
 metadata:
   name: media-library
   namespace: tv
+  annotations:
+    k8up.io/backup: "false"   # the library itself isn't backed up (too big for the SD card)
 spec:
   accessModes: ["ReadWriteOnce"]
   storageClassName: local-media
@@ -38,6 +41,8 @@ kind: PersistentVolumeClaim
 metadata:
   name: jellyfin-config
   namespace: tv
+  annotations:
+    k8up.io/backup: "false"
 spec:
   accessModes: ["ReadWriteOnce"]
   storageClassName: local-path
@@ -69,6 +74,7 @@ spec:
         runAsUser: 1000
         runAsGroup: 1000
         fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch   # don't walk the whole media library on every start
         seccompProfile:
           type: RuntimeDefault
       containers:

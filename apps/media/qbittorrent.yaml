@@ -1,0 +1,201 @@
+# Torrent client. Downloads land in /media/downloads; Sonarr/Radarr hardlink finished files into
+# /media/shows and /media/movies (same filesystem), so seeding doesn't take extra space.
+# No VPN yet: to add one later, put a Gluetun sidecar in this pod.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: qbittorrent-config
+  namespace: tv
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 1Gi
+---
+# Only used on the first start (no qBittorrent.conf yet); after that the Web UI owns the settings.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: qbittorrent-seed
+  namespace: tv
+data:
+  qBittorrent.conf: |
+    [LegalNotice]
+    Accepted=true
+
+    [BitTorrent]
+    Session\DefaultSavePath=/media/downloads
+    Session\TempPathEnabled=false
+    Session\Port=50413
+    Session\GlobalMaxRatio=1
+    Session\GlobalMaxSeedingMinutes=1440
+    Session\DiskIOType=SimplePreadPwrite
+    Session\DiskIOReadMode=DisableOSCache
+    Session\DiskIOWriteMode=EnableOSCache
+    Session\ResumeDataStorageType=SQLite
+
+    [Preferences]
+    Connection\UPnP=false
+    General\Locale=en
+    WebUI\Address=*
+    WebUI\Port=8080
+    WebUI\Username=admin
+    WebUI\Password_PBKDF2="@ByteArray(@PBKDF2@)"
+    WebUI\AuthSubnetWhitelistEnabled=false
+    WebUI\LocalHostAuth=false
+    WebUI\CSRFProtection=false
+    WebUI\HostHeaderValidation=false
+    WebUI\UseUPnP=false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: qbittorrent
+  namespace: tv
+  labels:
+    app: qbittorrent
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: qbittorrent
+  template:
+    metadata:
+      labels:
+        app: qbittorrent
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        # Every pod in the cluster can reach the Web UI, so it needs a password from the start
+        # (the image's default skips it for private subnets). The hash comes from scripts/seal.sh.
+        - name: seed-config
+          image: ghcr.io/home-operations/qbittorrent:5.2.4
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              set -eu
+              conf=/config/qBittorrent/qBittorrent.conf
+              mkdir -p /config/qBittorrent /media/downloads
+              [[ -f $conf ]] || sed "s|@PBKDF2@|$QBT_PASSWORD_PBKDF2|" /seed/qBittorrent.conf > "$conf"
+          env:
+            - name: QBT_PASSWORD_PBKDF2
+              valueFrom:
+                secretKeyRef: { name: media, key: QBITTORRENT_PASSWORD_PBKDF2 }
+          volumeMounts:
+            - { name: config, mountPath: /config }
+            - { name: media, mountPath: /media }
+            - { name: seed, mountPath: /seed }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+      containers:
+        - name: qbittorrent
+          image: ghcr.io/home-operations/qbittorrent:5.2.4
+          env:
+            - { name: TZ, value: "Europe/Prague" }
+          ports:
+            - name: http
+              containerPort: 8080
+            - name: bt-tcp
+              containerPort: 50413
+              protocol: TCP
+            - name: bt-udp
+              containerPort: 50413
+              protocol: UDP
+          volumeMounts:
+            - { name: config, mountPath: /config }
+            - { name: media, mountPath: /media }
+            - { name: tmp, mountPath: /tmp }
+          readinessProbe:
+            tcpSocket: { port: http }
+            periodSeconds: 15
+          livenessProbe:
+            tcpSocket: { port: http }
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests: { cpu: 50m, memory: 192Mi }
+            limits: { memory: 1Gi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: qbittorrent-config
+        - name: media
+          persistentVolumeClaim:
+            claimName: media-library
+        - name: seed
+          configMap:
+            name: qbittorrent-seed
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: qbittorrent
+  namespace: tv
+spec:
+  selector:
+    app: qbittorrent
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
+# The torrent port on the Pi's LAN IP. Optional: forward 50413 TCP+UDP in the router to
+# 192.168.50.244 for incoming peers (faster); without it only outgoing connections work.
+apiVersion: v1
+kind: Service
+metadata:
+  name: qbittorrent-bt
+  namespace: tv
+spec:
+  type: LoadBalancer
+  externalTrafficPolicy: Local
+  selector:
+    app: qbittorrent
+  ports:
+    - name: bt-tcp
+      port: 50413
+      targetPort: bt-tcp
+      protocol: TCP
+    - name: bt-udp
+      port: 50413
+      targetPort: bt-udp
+      protocol: UDP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: qbittorrent
+  namespace: tv
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: qbit.lichnovsky.eu
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: qbittorrent
+                port:
+                  number: 80

@@ -1,0 +1,109 @@
+# Subtitles: finds them for everything in Sonarr and Radarr and saves them next to the video.
+# Set up once in its UI (docs/setup.md); Configarr doesn't cover Bazarr.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: bazarr-config
+  namespace: tv
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bazarr
+  namespace: tv
+  labels:
+    app: bazarr
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: bazarr
+  template:
+    metadata:
+      labels:
+        app: bazarr
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch   # don't walk the whole media library on every start
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: bazarr
+          image: ghcr.io/home-operations/bazarr:1.6.2
+          env:
+            - { name: TZ, value: "Europe/Prague" }
+          ports:
+            - name: http
+              containerPort: 6767
+          volumeMounts:
+            - { name: config, mountPath: /config }
+            - { name: media, mountPath: /media }   # writes .srt files next to the videos
+            - { name: tmp, mountPath: /tmp }
+          readinessProbe:
+            tcpSocket: { port: http }
+            periodSeconds: 15
+          livenessProbe:
+            tcpSocket: { port: http }
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          resources:
+            requests: { cpu: 20m, memory: 192Mi }
+            limits: { memory: 512Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: bazarr-config
+        - name: media
+          persistentVolumeClaim:
+            claimName: media-library
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bazarr
+  namespace: tv
+spec:
+  selector:
+    app: bazarr
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bazarr
+  namespace: tv
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: bazarr.lichnovsky.eu
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: bazarr
+                port:
+                  number: 80

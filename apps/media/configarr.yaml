@@ -1,0 +1,180 @@
+# Configarr (https://configarr.de) applies this config to Sonarr, Radarr and Prowlarr every hour:
+# TRaSH-Guides quality profiles and naming, root folders, the qBittorrent connection, and Prowlarr's
+# links to Sonarr/Radarr. Settings not listed here stay as set in the apps' UIs.
+# Run it now: kubectl -n tv create job --from=cronjob/configarr configarr-now
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: configarr
+  namespace: tv
+data:
+  config.yml: |
+    sonarr:
+      main:
+        base_url: http://sonarr
+        api_key: !env SONARR_API_KEY
+        quality_definition:
+          type: series
+        include:
+          - template: 72dae194fc92bf828f32cde7744e51a1   # TRaSH WEB-1080p
+            source: TRASH
+        media_naming:
+          series: jellyfin-tvdb
+          season: default
+          episodes:
+            rename: true
+            standard: default
+            daily: default
+            anime: default
+        root_folders:
+          - /media/shows
+        download_clients:
+          data:
+            - name: qBittorrent
+              type: qbittorrent
+              enable: true
+              remove_completed_downloads: true
+              remove_failed_downloads: true
+              fields:
+                host: qbittorrent
+                port: 80
+                username: admin
+                password: !env QBITTORRENT_PASSWORD
+                tv_category: tv
+                tv_imported_category: tv-imported
+
+    radarr:
+      main:
+        base_url: http://radarr
+        api_key: !env RADARR_API_KEY
+        quality_definition:
+          type: movie
+        include:
+          - template: d1d67249d3890e49bc12e275d989a7e9   # TRaSH HD Bluray + WEB
+            source: TRASH
+        media_naming:
+          folder: jellyfin-tmdb
+          movie:
+            rename: true
+            standard: jellyfin-tmdb
+        root_folders:
+          - /media/movies
+        download_clients:
+          data:
+            - name: qBittorrent
+              type: qbittorrent
+              enable: true
+              remove_completed_downloads: true
+              remove_failed_downloads: true
+              fields:
+                host: qbittorrent
+                port: 80
+                username: admin
+                password: !env QBITTORRENT_PASSWORD
+                movie_category: movies
+                movie_imported_category: movies-imported
+
+    # Indexers themselves are added by hand in Prowlarr's UI (docs/setup.md); Prowlarr then pushes
+    # them to Sonarr and Radarr. Tag an indexer "flaresolverr" if it sits behind a Cloudflare check.
+    prowlarr:
+      main:
+        base_url: http://prowlarr
+        api_key: !env PROWLARR_API_KEY
+        tags:
+          - flaresolverr
+        indexer_proxies:
+          data:
+            - name: FlareSolverr
+              type: FlareSolverr
+              fields:
+                host: http://flaresolverr:8191/
+                requestTimeout: 60
+              tags:
+                - flaresolverr
+        applications:
+          data:
+            - name: Sonarr
+              type: Sonarr
+              sync_level: fullSync
+              fields:
+                prowlarrUrl: http://prowlarr
+                baseUrl: http://sonarr
+                apiKey: !env SONARR_API_KEY
+            - name: Radarr
+              type: Radarr
+              sync_level: fullSync
+              fields:
+                prowlarrUrl: http://prowlarr
+                baseUrl: http://radarr
+                apiKey: !env RADARR_API_KEY
+          sync_indexers: true
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: configarr-repos
+  namespace: tv
+  annotations:
+    k8up.io/backup: "false"   # a cache, cloned again if lost
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: configarr
+  namespace: tv
+spec:
+  schedule: "17 * * * *"
+  timeZone: Europe/Prague
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        spec:
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: configarr
+              image: ghcr.io/raydak-labs/configarr:1.33.0
+              env:
+                - { name: TZ, value: "Europe/Prague" }
+                - { name: HOME, value: /tmp }
+                - { name: STOP_ON_ERROR, value: "true" }   # a failed run shows up as a failed Job
+              envFrom:
+                - secretRef:
+                    name: media
+              volumeMounts:
+                - { name: config, mountPath: /app/config/config.yml, subPath: config.yml }
+                - { name: repos, mountPath: /app/repos }   # TRaSH-Guides clone, updated each run
+                - { name: tmp, mountPath: /tmp }
+              resources:
+                requests: { cpu: 50m, memory: 128Mi }
+                limits: { memory: 512Mi }
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: ["ALL"]
+          volumes:
+            - name: config
+              configMap:
+                name: configarr
+            - name: repos
+              persistentVolumeClaim:
+                claimName: configarr-repos
+            - name: tmp
+              emptyDir: {}

@@ -212,6 +212,7 @@ source ~/.config/lichnovsky/cloudflare.env
 | `tailscale-operator-oauth` | the OAuth client ID and secret from step 1 | |
 | `vaultwarden` | an argon2 hash of the admin page password | make it with `kubectl run vw-hash --rm -it --restart=Never --image=vaultwarden/server:1.37.3 -- /vaultwarden hash` |
 | `papra` | nothing | |
+| `media` | nothing | API keys for Sonarr/Radarr/Prowlarr and qBittorrent's password; prints the qBittorrent login once: save it |
 | `backups` | nothing | prints the **restic password** once: save it in the password manager and on paper. Refuses to run if backup secrets already exist |
 
 Values never touch the disk or a command line; they reach `kubeseal` through stdin. Commit the
@@ -314,6 +315,49 @@ CD and logs dashboards; *Node Exporter / Nodes* shows the Pi itself.
    ```
    Check codecs first with `ffprobe`: H.264/AAC plays everywhere; HEVC 10-bit plays in the Jellyfin
    apps but not in many browsers, which forces a CPU transcode (about one 1080p stream at most).
+
+**Media stack** (all home and Tailscale only). Do it in this order; each app's address is in the
+[README](../README.md). Inside the cluster the apps reach each other by short name (`http://sonarr`,
+port 80), which is what goes into the forms below.
+
+1. **Sonarr, Radarr, Prowlarr:** open each; the first screen asks for an authentication method:
+   *Forms (Login Page)*, *Required: Enabled*, and a username and password (save them).
+2. **Configarr:** run it once instead of waiting for :17, and check it ends with no errors:
+   ```bash
+   kubectl -n tv create job --from=cronjob/configarr configarr-now
+   kubectl -n tv logs -f job/configarr-now
+   ```
+   Sonarr now has the *WEB-1080p* profile, Radarr *HD Bluray + WEB*, both have the root folder and
+   qBittorrent as download client (*Settings → Download Clients → Test* is green), and Prowlarr lists
+   Sonarr and Radarr under *Settings → Apps*.
+3. **Prowlarr → Indexers → Add Indexer:** add the ones you use and press *Test*. An indexer behind a
+   Cloudflare check needs the tag `flaresolverr`. *Sync App Indexers* (or wait a few minutes) and
+   they appear in Sonarr/Radarr under *Settings → Indexers*.
+4. **qBittorrent:** log in as `admin` with the password `seal.sh media` printed. Nothing to change:
+   downloads go to `/media/downloads`, seeding stops at ratio 1 or after 24 h.
+5. **Bazarr:** create the login (*Settings → General → Security → Forms*), then:
+   - *Settings → Languages:* a profile, e.g. Czech + English; set it as the default for series and
+     movies.
+   - *Settings → Providers:* OpenSubtitles.com (free account), Podnapisi, and any others you like.
+   - *Settings → Sonarr:* address `sonarr`, port `80`, API key from Sonarr (*Settings → General*).
+     *Settings → Radarr:* `radarr`, `80`, Radarr's key. No path mappings: paths are the same everywhere.
+6. **Seerr** (`https://requests.lichnovsky.eu`): choose *Jellyfin* and sign in with the Jellyfin
+   admin (Jellyfin URL `http://jellyfin`, port `80`; external URL `https://tv.lichnovsky.eu`).
+   Sync the libraries (Movies, Shows). Then *Radarr server*: `radarr`, port `80`, Radarr's API key,
+   profile *HD Bluray + WEB*, root folder `/media/movies`, external URL `https://radarr.lichnovsky.eu`,
+   *Default server* on. *Sonarr server* the same with `sonarr`, *WEB-1080p*, `/media/shows`, season
+   folders on. Family members sign in with their Jellyfin accounts; give them *Auto-approve* under
+   *Users* if requests shouldn't wait for you.
+7. **Optional:**
+   - Discord: Sonarr/Radarr *Settings → Connect → Discord* and Seerr *Settings → Notifications →
+     Discord*, with the alerts webhook.
+   - Router: forward port `50413` TCP+UDP to `192.168.50.244` for incoming peers (faster, more
+     sources).
+   - Uptime Kuma: monitors for the stack must use in-cluster URLs, as the names are private:
+     `http://seerr.tv.svc.cluster.local/api/v1/status`, `http://sonarr.tv.svc.cluster.local/ping`.
+
+Test: request a movie in Seerr. It appears in Radarr, then in qBittorrent, and after the download
+in Jellyfin; Bazarr adds subtitles within the hour.
 
 **AdGuard Home** was set up in step 7.
 

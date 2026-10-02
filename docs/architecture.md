@@ -27,6 +27,7 @@ the only place anything is changed.
 │                          └───────────────┬─────────────┘                                       │
 │                                          ▼                                                     │
 │   Website · Vaultwarden · Papra · Uptime Kuma · Grafana · Argo CD · Jellyfin (LAN/Tailscale)   │
+│   Media stack (LAN/Tailscale): Seerr ► Sonarr/Radarr ► Prowlarr ► qBittorrent ► /srv/media     │
 │                                                                                                │
 │   AdGuard Home (hostNetwork :53)       Tailscale operator (subnet router for 192.168.50.244/32)│
 │   Prometheus · Alertmanager · Loki ◄── Alloy (pod logs)                                        │
@@ -75,6 +76,8 @@ through the CDN, and the tunnel counts.
 | Passwords | **Vaultwarden** | Bitwarden-compatible and tiny |
 | Documents | **Papra** | Simple document archive with a rootless image |
 | Media | **Jellyfin**, direct play | The Pi 5 has no hardware video encoder, so media must play without transcoding |
+| Media automation | **Seerr**, **Sonarr**, **Radarr**, **Prowlarr**, **qBittorrent**, **Bazarr**, **FlareSolverr** | A request in Seerr is searched, downloaded, renamed, given subtitles and shows up in Jellyfin. Images from home-operations: rootless, built for Kubernetes |
+| Media settings as code | **Configarr** (hourly CronJob) | Applies TRaSH-Guides quality profiles and naming, root folders, the download client and Prowlarr's app links from Git. Covers what Recyclarr does and more; Buildarr is unmaintained, Notifiarr keeps its config on its website |
 | Metrics, alerts | **kube-prometheus-stack** → Discord | Prometheus, Grafana, Alertmanager, node-exporter |
 | Logs | **Loki** (single binary) + **Alloy** | Alloy replaces Promtail (end of life 2026-03-02) |
 | Uptime | **Uptime Kuma** | Checks from inside + the public status page |
@@ -102,8 +105,12 @@ What keeps it there:
 - The kubelet reserves 768 Mi and evicts pods below 256 Mi free (`host/k3s-config.yaml`), so a busy
   moment restarts one pod instead of freezing the Pi.
 
+**The media stack** adds roughly 1.2–1.6 GB: Sonarr and Radarr ~250 MB each, Seerr ~250 MB,
+FlareSolverr's Chrome ~200–500 MB, qBittorrent, Prowlarr and Bazarr ~150 MB each.
+
 **Immich runs without machine learning** when enabled: ~0.7–0.9 GB at idle and ~1.5–2 GB during a
-big import fit; its ML models would add another 1–1.5 GB and use up everything that's free. See
+big import. Next to the media stack that is tight; dropping FlareSolverr is the first saving. Its ML
+models would add another 1–1.5 GB, more than is free. See
 [operations.md → Enabling Immich](operations.md#enabling-immich).
 
 ## Kubernetes structure
@@ -111,10 +118,12 @@ big import fit; its ML models would add another 1–1.5 GB and use up everything
 Each app is **one YAML file with several resources** separated by `---` (Deployment, Service,
 Ingress…), which Kubernetes recommends for related objects: everything that belongs to an app is in
 one place and applied together. The website (`apps/web/`) is split per resource and uses
-Kustomize, whose `images:` field is where CI writes each new image tag.
+Kustomize, whose `images:` field is where CI writes each new image tag. The media stack
+(`apps/media/`) is one Argo CD app with one file per program.
 
 **Namespaces:** platform pieces use functional names (`networking`, `monitoring`, `tailscale`,
-`backups`); apps use `web`, `vaultwarden`, `papra`, `dns` (AdGuard), `tv` (Jellyfin), `photos` (Immich).
+`backups`); apps use `web`, `vaultwarden`, `papra`, `dns` (AdGuard), `tv` (Jellyfin and the media
+stack, which share the media volume), `photos` (Immich).
 Uptime Kuma lives in `monitoring`. A SealedSecret is encrypted for one namespace + name, so moving an
 app to another namespace means re-sealing its secrets.
 
