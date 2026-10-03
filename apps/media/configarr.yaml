@@ -18,8 +18,16 @@ data:
         delete_unmanaged_quality_profiles:   # the built-in Any, SD, HD-720p, Ultra-HD, ...
           enabled: true
         include:
-          - template: 72dae194fc92bf828f32cde7744e51a1   # TRaSH WEB-1080p
+          - template: 72dae194fc92bf828f32cde7744e51a1   # TRaSH WEB-1080p (the default)
             source: TRASH
+          - template: c4cadd6b35b95f62c3d47a408e53e2f7   # TRaSH WEB-2160p (Combined): 2160p, else 1080p
+            source: TRASH
+        # Same two names as in Radarr. 720p, HDTV, remuxes etc. only by hand (Interactive Search).
+        renameQualityProfiles:
+          - from: WEB-1080p
+            to: 1080p
+          - from: WEB-2160p (Combined)
+            to: 4K, else 1080p
         media_naming:
           series: jellyfin-tvdb
           season: default
@@ -58,10 +66,19 @@ data:
             source: TRASH
           - template: 64fb5f9858489bdac2af690e27c8f42f   # TRaSH UHD Bluray + WEB, reshaped below
             source: TRASH
-        # "4K, else 1080p", chosen per movie (Seerr: Advanced, or Radarr): grabs 2160p if it exists,
-        # otherwise 1080p, and upgrades to 2160p later. The Pi can't transcode 4K, so it plays only
-        # on devices that decode it themselves (TV apps; not most browsers).
+        # "1080p": TRaSH's movie profile without its automatic 720p fallback. "4K, else 1080p",
+        # chosen per movie (Seerr: Advanced, or Radarr): grabs 2160p if it exists, otherwise 1080p,
+        # and upgrades to 2160p later. The Pi can't transcode 4K, so it plays only on devices that
+        # decode it themselves (TV apps; not most browsers). 720p, remuxes etc. only by hand.
         quality_profiles:
+          - name: HD Bluray + WEB
+            upgrade:
+              allowed: true
+              until_quality: Bluray-1080p
+            qualities:
+              - name: Bluray-1080p
+              - name: WEB 1080p
+                qualities: [WEBDL-1080p, WEBRip-1080p]
           - name: UHD Bluray + WEB
             upgrade:
               allowed: true
@@ -74,6 +91,8 @@ data:
               - name: WEB 1080p
                 qualities: [WEBDL-1080p, WEBRip-1080p]
         renameQualityProfiles:
+          - from: HD Bluray + WEB
+            to: 1080p
           - from: UHD Bluray + WEB
             to: 4K, else 1080p
         media_naming:

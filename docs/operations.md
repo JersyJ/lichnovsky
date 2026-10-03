@@ -191,10 +191,10 @@ title stays wanted: new releases are checked every ~15 minutes and it is grabbed
 A better release later replaces the file (an upgrade).
 
 **Directly in Radarr or Sonarr** (more options):
-- Radarr → *Movies → Add New* → search → root folder `/media/movies`, profile *HD Bluray + WEB*,
+- Radarr → *Movies → Add New* → search → root folder `/media/movies`, profile *1080p*,
   monitor *Movie Only*, minimum availability *Released*, tick *Start search for missing movie* →
   *Add Movie*.
-- Sonarr → *Series → Add New* → root folder `/media/shows`, profile *WEB-1080p*, monitor *All
+- Sonarr → *Series → Add New* → root folder `/media/shows`, profile *1080p*, monitor *All
   Episodes* (*Future Episodes* for only what airs from now on), series type *Standard* (*Anime* or
   *Daily* for those), season folders on, tick *Start search for missing episodes* → *Add*.
 
@@ -202,12 +202,14 @@ A better release later replaces the file (an upgrade).
 icon) lists every release found, with the reason a rejected one doesn't fit; the download icon grabs
 one. For a specific cut, or when the automatic search finds nothing acceptable.
 
-**4K:** the default is 1080p (*HD Bluray + WEB*). For a movie you want in 4K, choose the profile
-**4K, else 1080p**: in Seerr's request dialog under *Advanced* (admins and users allowed advanced
-requests), or later in Radarr → the movie → *Edit*. It takes 2160p if it exists, otherwise 1080p,
-and upgrades to 2160p when one appears. The Pi can't transcode 4K: it plays only on devices that
-decode 4K HEVC/HDR themselves (the TV apps; not most browsers or older phones), and a 4K movie
-takes 15–60 GB.
+**Profiles:** both apps have the same two, from TRaSH-Guides via Configarr: **1080p** (the default;
+movies from Blu-ray or WEB, shows from WEB) and **4K, else 1080p**. Choose the second for a movie or
+show you want in 4K: in Seerr's request dialog under *Advanced* (admins and users allowed advanced
+requests), or later in Radarr/Sonarr → the title → *Edit*. It takes 2160p if it exists, otherwise
+1080p, and upgrades to 2160p when one appears. Anything else (720p, HDTV, a remux, few seeders) only
+by hand, through *Interactive Search*. The Pi can't transcode 4K: it plays only on devices that
+decode 4K HEVC/HDR themselves (the TV apps; not most browsers or older phones), and a 4K movie takes
+15–60 GB.
 
 **Language:** the profiles accept the original language only (an English film in English); dubbed
 releases are rejected, and Bazarr supplies Czech and English subtitles. To allow dubbing, change the

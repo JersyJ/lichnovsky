@@ -41,7 +41,7 @@ downloaded automatically as soon as a good copy exists, so you don't have to ask
 **Missing a few episodes** of a show that's already there? Seerr can only ask for whole seasons;
 tell the admin which episodes, and they'll be added.
 
-Movies come in **1080p**, which plays everywhere. Want one in **4K** for the big TV? Ask the admin:
+Movies and shows come in **1080p**, which plays everywhere. Want one in **4K** for the big TV? Ask the admin:
 4K plays on the TV apps, but not in most browsers or on older phones.
 
 Movies and shows come in their **original language** (an English film in English), with Czech and

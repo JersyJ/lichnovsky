@@ -327,7 +327,7 @@ port 80), which is what goes into the forms below.
    kubectl -n tv create job --from=cronjob/configarr configarr-now
    kubectl -n tv logs -f job/configarr-now
    ```
-   Sonarr now has the *WEB-1080p* profile, Radarr *HD Bluray + WEB*, both have the root folder and
+   Both have the profiles *1080p* and *4K, else 1080p*, the root folder and
    qBittorrent as download client (*Settings → Download Clients → Test* is green), and Prowlarr lists
    Sonarr and Radarr under *Settings → Apps*.
 3. **Prowlarr → Indexers → Add Indexer:** add the ones you use and press *Test*. An indexer behind a
@@ -348,8 +348,8 @@ port 80), which is what goes into the forms below.
 6. **Seerr** (`https://watchlist.lichnovsky.eu`): choose *Jellyfin* and sign in with the Jellyfin
    admin (Jellyfin URL `http://jellyfin`, port `80`; external URL `https://tv.lichnovsky.eu`).
    Sync the libraries (Movies, Shows). Then *Radarr server*: `radarr`, port `80`, Radarr's API key,
-   profile *HD Bluray + WEB*, root folder `/media/movies`, external URL `https://radarr.lichnovsky.eu`,
-   *Default server* on. *Sonarr server* the same with `sonarr`, *WEB-1080p*, `/media/shows`, season
+   profile *1080p*, root folder `/media/movies`, external URL `https://radarr.lichnovsky.eu`,
+   *Default server* on. *Sonarr server* the same with `sonarr`, *1080p*, `/media/shows`, season
    folders on. Family members sign in with their Jellyfin accounts; give them *Auto-approve* under
    *Users* if requests shouldn't wait for you.
 7. **Optional:**
