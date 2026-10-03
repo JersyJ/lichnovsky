@@ -97,14 +97,23 @@ and SSD wear than it saves. Home Assistant operates better on its own device (HA
 
 ## Memory
 
-The Pi has 7.9 GB. Before the media stack, approximately **5.1 GB** was in use (`free -m`, without
-page cache). The largest users:
+Measured on 2026-10-03 with all apps running: of 7.9 GB, the apps and k3s use 5.4 GB, and **1.8 GB
+is available**. To check, look at *available* in `free -m`, not at *free*. *Free* is always low,
+because Linux uses unused memory as file cache and releases it when apps need it.
 
-- k3s (API server and etcd): approximately 1.3 GB
-- Grafana, with its plugin processes: approximately 350 MB
-- Prometheus: approximately 340 MB
-- The Argo CD controller: approximately 320 MB
-- Papra: approximately 300 MB
+The kubelet evicts pods when less than 256 MB is free. Thus, the real headroom is approximately
+1.55 GB. Before the media stack, 2.9 GB was available.
+
+| Group | Memory | Largest users |
+|---|---|---|
+| k3s (API server, etcd, kubelet) | 1.25 GB | |
+| `tv` (Jellyfin, media stack) | 1.6 GB | Jellyfin 420 MB, Seerr, Radarr, Bazarr, Prowlarr, Sonarr 180–220 MB each, FlareSolverr 150 MB, qBittorrent 35 MB |
+| `monitoring` | 1.55 GB | Prometheus 640 MB, Grafana 350 MB, Loki 190 MB, Uptime Kuma 175 MB |
+| `argocd` | 0.55 GB | Controller 400 MB |
+| Papra | 0.28 GB | |
+| All other apps | 0.6 GB | Gokapi 16 MB (up to approximately 150 MB for each file during an upload), Vaultwarden 20 MB |
+
+The pods request 4.5 GB of approximately 7 GB that the scheduler can give (64 %).
 
 These settings keep the memory use low:
 
@@ -112,19 +121,21 @@ These settings keep the memory use low:
   approximately 2× its live data. This setting decreased k3s from 1.8 GB to 1.3 GB.
 - `GOMEMLIMIT=650MiB` for the Argo CD controller. Its cache also excludes resource types that change
   frequently (Events, ACME orders). Refer to `bootstrap/argocd-values.yaml`.
+- Grafana starts only the datasource plugins that are in use (`disable_plugins` in
+  `argocd/10-kube-prometheus-stack.yaml`). Each other plugin would be a process of 5–12 MB.
 - The kubelet reserves 768 Mi. If less than 256 Mi is free, the kubelet evicts pods
   (`host/k3s-config.yaml`). Thus, at a peak, one pod restarts and the Pi does not freeze.
 
-**The media stack** uses approximately 1.2 GB at idle (measured):
-
-- Sonarr, Radarr, Prowlarr, Bazarr, Seerr: approximately 170–200 MB each
-- FlareSolverr: approximately 250 MB, and more while Chrome runs
-- qBittorrent: approximately 25 MB without active downloads
-
 **Immich operates without machine learning** when you enable it. It uses approximately 0.7–0.9 GB
-at idle and 1.5–2 GB during a large import. With the media stack, the memory is tight. To get
-memory, first remove FlareSolverr. The machine-learning models of Immich need 1–1.5 GB more, which
-is more than is free. Refer to [operations.md → Enable Immich](operations.md#enable-immich).
+at idle and 1.5–2 GB during a large import. With the current apps, approximately 0.9 GB stays free
+at idle, and nothing during a large import. Before you enable Immich, get approximately 0.5 GB:
+
+1. Decrease the Prometheus retention from 30 to 15 days (approximately 150–250 MB).
+2. Remove FlareSolverr (150 MB), if the indexers operate without it.
+3. Do the first import during the night, when the other apps are idle.
+
+The machine-learning models of Immich need 1–1.5 GB more, which is more than is free. Refer to
+[operations.md → Enable Immich](operations.md#enable-immich).
 
 ## Kubernetes structure
 
