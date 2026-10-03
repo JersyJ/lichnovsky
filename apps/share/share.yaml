@@ -2,17 +2,30 @@
 # account can upload. The files are in the R2 bucket lichnovsky-share (cloudflare/share.tf), and
 # viewers download them directly from R2 through presigned links, not through the tunnel.
 # Not backed up: the shares expire after days, and the users take five minutes to make again.
+# Mounted at Gokapi's own paths (/app/config, /app/data): its setup checks that both are volumes.
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: gokapi
+  name: gokapi-config
   namespace: share
 spec:
   accessModes: ["ReadWriteOnce"]
   storageClassName: local-path
   resources:
     requests:
-      storage: 2Gi   # config, SQLite database, chunks of uploads in progress
+      storage: 64Mi   # config.json
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: gokapi-data
+  namespace: share
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 2Gi    # SQLite database, chunks of uploads in progress
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -50,8 +63,6 @@ spec:
           env:
             - { name: TZ, value: "Europe/Prague" }
             - { name: TMPDIR, value: /tmp }
-            - { name: GOKAPI_CONFIG_DIR, value: /data/config }
-            - { name: GOKAPI_DATA_DIR, value: /data/files }
             - { name: GOKAPI_LOG_STDOUT, value: "true" }
             # Client IPs for the logs and the login limit: Traefik's pod network, and Cloudflare's
             # CF-Connecting-IP on requests that come through the tunnel.
@@ -77,7 +88,8 @@ spec:
             - name: http
               containerPort: 53842
           volumeMounts:
-            - { name: data, mountPath: /data }
+            - { name: config, mountPath: /app/config }
+            - { name: data, mountPath: /app/data }
             - { name: tmp, mountPath: /tmp }
           readinessProbe:
             tcpSocket: { port: http }
@@ -95,9 +107,12 @@ spec:
             capabilities:
               drop: ["ALL"]
       volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: gokapi-config
         - name: data
           persistentVolumeClaim:
-            claimName: gokapi
+            claimName: gokapi-data
         - name: tmp
           emptyDir:
             sizeLimit: 2Gi
