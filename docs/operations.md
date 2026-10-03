@@ -393,16 +393,20 @@ users is [share.md](share.md).
 Uploader ──login──► Gokapi on the Pi (through the tunnel: pages and upload)
                          │ stores the file
                          ▼
-                 R2 bucket lichnovsky-share (deletes after 8 days)
+                 R2 bucket lichnovsky-share (deletes after 15 days)
                          ▲
 Viewer ─── link ─────────┘  the video comes directly from R2, not through the tunnel
 ```
 
 - **Users:** Only persons with an account can upload. Make the accounts in Gokapi under *Users*.
   Give them the upload permission, but not the admin permissions.
-- **Expiry:** Each share expires after a number of days or downloads. The uploader selects this.
-  Gokapi then deletes the file. If Gokapi does not delete a file, the R2 rule deletes it after 8
-  days.
+- **Expiry:** Each share expires after a number of days (default 14, the maximum) or downloads.
+  The uploader selects this. Gokapi then deletes the file. If Gokapi does not delete a file, the R2
+  rule deletes it after 15 days. Thus, an expiry of more than 14 days does not work: R2 deletes the
+  file first.
+- **Download limit:** Gokapi enables a limit of 1 download by default. For Discord, turn the limit
+  off: the preview of Discord and each playback count as downloads. Gokapi remembers the setting
+  in each browser.
 - **Limits:** 5 GB for each file (`GOKAPI_MAX_FILESIZE` in `apps/share/share.yaml`). Gokapi uploads
   in parts of 45 MB, thus the 100 MB limit of the tunnel has no effect.
 - **Upload path:** The browser sends the parts to Gokapi on the Pi. Gokapi puts them together on
@@ -411,7 +415,8 @@ Viewer ─── link ─────────┘  the video comes directly f
 - **No encryption:** R2 must give the video directly to the browser or to Discord. Thus, do not
   set an encryption level in Gokapi. R2 encrypts the stored data.
 - **Costs:** The free tier of R2 is 10 GB of storage (average for the month). Downloads are free.
-  Because the files stay only some days, you can upload much more than 10 GB each month. A billing
+  Because each file stays at most 14 days, you can upload approximately 20 GB each month for free.
+  Above that, each additional 10 GB of average storage costs approximately $0.15 each month. A billing
   notification sends an e-mail if costs start (refer to [setup.md](setup.md), step 8).
 - **No backup:** The shares expire anyway. If the volume is lost, do the setup wizard again and
   make the accounts again.

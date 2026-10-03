@@ -10,8 +10,11 @@ The admin makes the accounts. If you do not have an account, ask the admin.
 
 1. Open https://share.lichnovsky.eu/admin and log in.
 2. Before the upload, set the options for the link:
-   - **Expiry:** after how many days, or after how many downloads, the file is deleted. The usual
-     value is 7 days.
+   - **Downloads:** turn the download limit **off**. Gokapi sets it to 1 download by default. Then
+     the link stops after the first view, and the preview in Discord already counts as a view.
+     Gokapi remembers your setting for the next uploads.
+   - **Expiry:** after how many days the file is deleted. The default is 14 days, which is also the
+     maximum.
    - **Password:** keep it empty. Discord can then show the video in the chat. If you set a
      password, persons must open the link and enter the password.
 3. Drag the video into the upload area, or push the area and select the file. Maximum file size:

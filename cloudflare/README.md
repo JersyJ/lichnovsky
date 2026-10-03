@@ -3,7 +3,7 @@
 OpenTofu controls all of the Cloudflare configuration:
 
 - the tunnel and its public hostnames
-- the R2 bucket `lichnovsky-share` for Gokapi, with a rule that deletes objects after 8 days
+- the R2 bucket `lichnovsky-share` for Gokapi, with a rule that deletes objects after 15 days
 - DNS
 - Access
 - the rate limit and the cache rule
