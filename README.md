@@ -14,7 +14,7 @@ Nightly encrypted backups go to the Pi's SD card; alerts go to Discord.
 | Grafana | https://grafana.lichnovsky.eu | yes | yes |
 | Jellyfin | https://tv.lichnovsky.eu | no | – |
 | AdGuard Home | https://dns.lichnovsky.eu | no | – |
-| Seerr (requests for Jellyfin) | https://requests.lichnovsky.eu | no | – |
+| Seerr (requests for Jellyfin) | https://watchlist.lichnovsky.eu | no | – |
 | Sonarr (shows), Radarr (movies) | https://sonarr.lichnovsky.eu, https://radarr.lichnovsky.eu | no | – |
 | Prowlarr (indexers), Bazarr (subtitles) | https://prowlarr.lichnovsky.eu, https://bazarr.lichnovsky.eu | no | – |
 | qBittorrent | https://qbit.lichnovsky.eu | no | – |
@@ -28,6 +28,7 @@ Every app is also reachable at home and over Tailscale;
 - [architecture.md](docs/architecture.md): what runs, how traffic flows, why each choice
 - [setup.md](docs/setup.md): building it from zero, in order
 - [operations.md](docs/operations.md): changes, updates, alerts, backups, restores, troubleshooting
+- [movies-and-shows.md](docs/movies-and-shows.md): for family members, watching in Jellyfin and requesting in Seerr
 
 ## Layout
 

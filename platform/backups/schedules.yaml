@@ -1,7 +1,8 @@
 # One Schedule per namespace: a k8up Schedule only covers PVCs in its own namespace.
 # restic runs as root: the default UID 65532 silently skips 0600 files (e.g. AdGuard's config).
 # Times: Vaultwarden snapshot 02:30, Immich pg_dump 03:00, restic 03:30-04:20.
-# tv: only the media stack's settings; the library and Jellyfin's config are opted out (k8up.io/backup).
+# Opt-in (argocd/13-k8up.yaml): only PVCs annotated k8up.io/backup: "true". In tv that's the media
+# stack's settings, not the library or Jellyfin's config.
 ---
 apiVersion: k8up.io/v1
 kind: Schedule

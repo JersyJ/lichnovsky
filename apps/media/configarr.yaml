@@ -114,8 +114,6 @@ kind: PersistentVolumeClaim
 metadata:
   name: configarr-repos
   namespace: tv
-  annotations:
-    k8up.io/backup: "false"   # a cache, cloned again if lost
 spec:
   accessModes: ["ReadWriteOnce"]
   storageClassName: local-path

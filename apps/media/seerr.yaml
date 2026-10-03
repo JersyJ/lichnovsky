@@ -5,6 +5,8 @@ kind: PersistentVolumeClaim
 metadata:
   name: seerr-config
   namespace: tv
+  annotations:
+    k8up.io/backup: "true"
 spec:
   accessModes: ["ReadWriteOnce"]
   storageClassName: local-path
@@ -88,7 +90,7 @@ metadata:
 spec:
   ingressClassName: traefik
   rules:
-    - host: requests.lichnovsky.eu
+    - host: watchlist.lichnovsky.eu
       http:
         paths:
           - path: /

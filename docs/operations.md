@@ -74,8 +74,9 @@ k3s etcd snapshots (every 12 h) ────────────┴───
 
 **Backing up another namespace:** `scripts/seal.sh backup-namespace <ns>` adds a login for it
 (keeping the others), then add a Schedule in `platform/backups/schedules.yaml` and the namespace to
-the NetworkPolicy in `platform/backups/rest-server.yaml`. k8up backs up every PVC in the namespace;
-opt big or rebuildable ones out with the annotation `k8up.io/backup: "false"`.
+the NetworkPolicy in `platform/backups/rest-server.yaml`. Backups are opt-in: only PVCs annotated
+`k8up.io/backup: "true"` are included. A schedule that finds none still reports *Succeeded* ("nothing
+to backup"), so check for a fresh snapshot after adding one.
 
 The restic pods run as root: the k8up image's own UID can't read files apps write with mode 0600
 (e.g. Vaultwarden's `rsa_key.pem`) and would silently skip them. If the SD card is missing, the
@@ -176,10 +177,53 @@ a hardlink: a finished download is in the library at once and keeps seeding with
 twice. qBittorrent stops seeding at ratio 1 or after 24 h, then Sonarr/Radarr remove the torrent;
 the library copy stays.
 
+### Adding a movie or show
+
+Family members use Seerr: [movies-and-shows.md](movies-and-shows.md) is their guide. Requests from
+users with *Auto-Approve* (Seerr → *Users*) and your own start at once; the rest wait under
+*Requests* for approval, and Discord tells you. Issues people report arrive the same way.
+
+Behind a request, Radarr/Sonarr search every indexer and take the best release the quality profile
+allows (TRaSH: good 1080p WEB/Bluray groups first, no fakes, re-encodes or low quality). qBittorrent
+downloads it, the import renames and hardlinks it into the library, Jellyfin shows it, Bazarr adds
+subtitles within the hour, and Discord reports the import. If nothing acceptable exists yet, the
+title stays wanted: new releases are checked every ~15 minutes and it is grabbed as soon as one fits.
+A better release later replaces the file (an upgrade).
+
+**Directly in Radarr or Sonarr** (more options):
+- Radarr → *Movies → Add New* → search → root folder `/media/movies`, profile *HD Bluray + WEB*,
+  monitor *Movie Only*, minimum availability *Released*, tick *Start search for missing movie* →
+  *Add Movie*.
+- Sonarr → *Series → Add New* → root folder `/media/shows`, profile *WEB-1080p*, monitor *All
+  Episodes* (*Future Episodes* for only what airs from now on), series type *Standard* (*Anime* or
+  *Daily* for those), season folders on, tick *Start search for missing episodes* → *Add*.
+
+**Picking the release yourself:** on a movie, season or episode, **Interactive Search** (the person
+icon) lists every release found, with the reason a rejected one doesn't fit; the download icon grabs
+one. For a specific cut, or when the automatic search finds nothing acceptable.
+
+**Language:** the profiles accept the original language only (an English film in English); dubbed
+releases are rejected, and Bazarr supplies Czech and English subtitles. To allow dubbing, change the
+language settings in `apps/media/configarr.yaml`.
+
+**Files you already have:** copy them in with the naming from [setup.md](setup.md) (Jellyfin), then
+Radarr → *Movies → Library Import* (or Sonarr → *Series → Library Import*), so they get upgrades and
+subtitles too: Bazarr only works on titles that Sonarr/Radarr know.
+
+**Removing:** in Radarr/Sonarr → the title → *Delete*, with *Delete files* ticked. Deleting only in
+Jellyfin or on disk makes a still-monitored title download again. In Seerr, *Manage → Clear Data*
+on the title lets it be requested again.
+
+### When something is stuck
+
 - **Indexers** are added by hand in Prowlarr (not in Git: this repository is public); Prowlarr
   pushes them to Sonarr and Radarr.
 - **Nothing downloads:** Sonarr/Radarr → *Activity → Queue* shows why; *System → Status* lists
-  broken indexers or a failing download client. Prowlarr → *Indexers* → test each.
+  broken indexers or a failing download client. Prowlarr → *Indexers* → test each. A failed
+  download is blocklisted and another release is searched automatically.
+- **An indexer is missing in Radarr or Sonarr:** they refuse an indexer whose test search returns
+  nothing in their categories (movies 2000s, TV 5000s); Prowlarr's log shows `400` for that app. Use
+  an indexer that carries that kind of content.
 - **Import fails with "hardlink"/"permission":** all pods run as UID 1000 and `/srv/media` must
   belong to it (`sudo chown -R 1000:1000 /srv/media` on the Pi).
 - **Settings drift back:** that's Configarr; change `apps/media/configarr.yaml` instead.

@@ -339,9 +339,13 @@ port 80), which is what goes into the forms below.
    - *Settings → Languages:* a profile, e.g. Czech + English; set it as the default for series and
      movies.
    - *Settings → Providers:* OpenSubtitles.com (free account), Podnapisi, and any others you like.
-   - *Settings → Sonarr:* address `sonarr`, port `80`, API key from Sonarr (*Settings → General*).
-     *Settings → Radarr:* `radarr`, `80`, Radarr's key. No path mappings: paths are the same everywhere.
-6. **Seerr** (`https://requests.lichnovsky.eu`): choose *Jellyfin* and sign in with the Jellyfin
+   - *Settings → Library → Sonarr:* tick *Enabled*, address `sonarr`, port `80`, API key from Sonarr
+     (*Settings → General*). *Radarr* tab: `radarr`, `80`, Radarr's key. No path mappings: paths
+     are the same everywhere.
+   - *Settings → Integrations → Jellyfin:* *Enabled*, server URL `http://jellyfin`, an API key from
+     Jellyfin (*Dashboard → API Keys*), refresh *Immediate*; pick both libraries and tick their
+     refresh boxes, so new subtitles show up in Jellyfin at once.
+6. **Seerr** (`https://watchlist.lichnovsky.eu`): choose *Jellyfin* and sign in with the Jellyfin
    admin (Jellyfin URL `http://jellyfin`, port `80`; external URL `https://tv.lichnovsky.eu`).
    Sync the libraries (Movies, Shows). Then *Radarr server*: `radarr`, port `80`, Radarr's API key,
    profile *HD Bluray + WEB*, root folder `/media/movies`, external URL `https://radarr.lichnovsky.eu`,
@@ -352,7 +356,8 @@ port 80), which is what goes into the forms below.
    - Discord: Sonarr/Radarr *Settings → Connect → Discord* and Seerr *Settings → Notifications →
      Discord*, with the alerts webhook.
    - Router: forward port `50413` TCP+UDP to `192.168.50.244` for incoming peers (faster, more
-     sources).
+     sources). Only with a public IPv4: behind CGNAT (the router's WAN IP is `10.x`/`100.64.x`) a
+     forward can't work; a VPN with port forwarding solves it ([operations.md](operations.md#media-stack)).
    - Uptime Kuma: monitors for the stack must use in-cluster URLs, as the names are private:
      `http://seerr.tv.svc.cluster.local/api/v1/status`, `http://sonarr.tv.svc.cluster.local/ping`.
 
