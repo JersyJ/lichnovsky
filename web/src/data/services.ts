@@ -34,7 +34,7 @@ export const lines: Line[] = [
     services: [
       { name: "lichnovsky.eu", description: "This page", url: "https://lichnovsky.eu",
         access: "public", self: true },
-      { name: "Gokapi", description: "File Sharing", url: "https://share.lichnovsky.eu/admin",
+      { name: "Gokapi", description: "File Sharing", url: "https://share.lichnovsky.eu",
         access: "public", monitor: "Gokapi" },
       { name: "Vaultwarden", description: "Passwords", url: "https://vault.lichnovsky.eu",
         access: "public", monitor: "Vaultwarden" },

@@ -387,7 +387,8 @@ The Pi 5 can do WireGuard at several hundred Mbit/s. Thus, the Wi-Fi stays the l
 ## Share videos (Gokapi)
 
 Gokapi (`https://share.lichnovsky.eu`) shares files through links that expire. The guide for the
-users is [share.md](share.md).
+users is [share.md](share.md). Gokapi sends the bare address to its *Redirection URL*, which is
+the upload page (`/admin`). Without a login, Gokapi shows its login page there.
 
 ```
 Uploader ──login──► Gokapi on the Pi (through the tunnel: pages and upload)

@@ -475,13 +475,14 @@ The setup wizard of Gokapi has no login. Thus, do the wizard at home, before the
 3. **Webserver:** Set *Bind to localhost* **off** (Traefik connects through the pod network) and
    *Use SSL* **off** (Traefik does TLS). Set the *Public Facing URL* to
    `https://share.lichnovsky.eu/`. Set *Include filename in download URL* on and *Save IP* off.
-   Set the *Redirection URL* to `https://lichnovsky.eu`.
+   Set the *Redirection URL* to `https://share.lichnovsky.eu/admin`. Then the bare address opens
+   the upload page (or the login).
 4. **Authentication:** *Username/Password*. Make the admin account with a strong password.
 5. **Storage:** *Cloud storage*. The manifest gives the R2 values. Make sure that *Proxy download*
    is off.
 6. **Encryption:** *None*. With encryption, viewers cannot play a video directly from R2, and
    Discord cannot show it. R2 encrypts the stored data anyway.
-7. Log in. Under *Users*, make an account for each person who can upload. Give these accounts the
+7. Open `https://share.lichnovsky.eu` and log in. Under *Users*, make an account for each person who can upload. Give these accounts the
    permission to upload, but not the admin permissions.
 8. Make the name public: in `cloudflare/tunnel.tf`, add `"share.${var.domain}"` to `public_hosts`.
    Run `tofu -chdir=cloudflare apply`.

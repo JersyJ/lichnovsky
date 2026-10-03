@@ -8,7 +8,7 @@ The admin makes the accounts. If you do not have an account, ask the admin.
 
 ## Upload and share
 
-1. Open https://share.lichnovsky.eu/admin and log in.
+1. Open https://share.lichnovsky.eu and log in.
 2. Before the upload, set the options for the link:
    - **Downloads:** turn the download limit **off**. Gokapi sets it to 1 download by default. Then
      the link stops after the first view, and the preview in Discord already counts as a view.
@@ -31,7 +31,7 @@ cannot find a link without the ID.
 
 ## Delete a file before it expires
 
-1. Open https://share.lichnovsky.eu/admin.
+1. Open https://share.lichnovsky.eu.
 2. In the list, find the file and push the delete icon.
 
 The link then stops to work immediately.
