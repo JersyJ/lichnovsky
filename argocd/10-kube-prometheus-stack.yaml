@@ -122,6 +122,12 @@ spec:
           resources:
             requests: { cpu: 25m, memory: 256Mi }
             limits: { memory: 768Mi }
+          # Each bundled datasource plugin is a process (~5-12 MB), used or not. Only Prometheus,
+          # Loki and Alertmanager are in use; PostgreSQL stays for later. Delete a name to enable it.
+          grafana.ini:
+            plugins:
+              disable_plugins: >-
+                elasticsearch,mssql,tempo,zipkin,influxdb,stackdriver,grafana-pyroscope-datasource,mysql,jaeger,opentsdb
           ingress:
             enabled: true
             ingressClassName: traefik
