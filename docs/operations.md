@@ -276,10 +276,19 @@ the language settings in `apps/media/configarr.yaml`.
 **Files that you already have:**
 
 1. Copy the files to the Pi with the naming from [setup.md](setup.md) (Jellyfin).
-2. In Radarr, use *Movies → Library Import*. In Sonarr, use *Series → Library Import*.
+2. In Radarr, use *Movies → Library Import*. In Sonarr, use *Series → Library Import*. Select the
+   root folder (`/media/movies` or `/media/shows`) and make sure that each title has the correct
+   match.
+3. Set the profile *1080p* and select the monitor option:
+   - **Movie Only** (in Sonarr: *All Episodes* or *Last Season*): Radarr or Sonarr searches for a
+     better release. If it finds one, it replaces your file. Use this for small or low-quality
+     files.
+   - **None:** Your files stay as they are. Radarr or Sonarr does not download anything for them.
+     Use this if you want to keep a special version or dub.
+4. Push *Import*.
 
-Then the titles also get upgrades and subtitles. Bazarr works only on titles that Sonarr or Radarr
-knows.
+After the import, Bazarr knows the titles and adds the missing subtitles. Bazarr works only on
+titles that Sonarr or Radarr knows. Seerr shows the titles as available.
 
 **Missing episodes of a series that you already have:** Seerr requests only full seasons. If
 Jellyfin has a season partially, Seerr cannot request that season.
