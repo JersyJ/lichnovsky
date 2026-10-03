@@ -210,6 +210,12 @@ language settings in `apps/media/configarr.yaml`.
 Radarr → *Movies → Library Import* (or Sonarr → *Series → Library Import*), so they get upgrades and
 subtitles too: Bazarr only works on titles that Sonarr/Radarr know.
 
+**Missing episodes of a show you already have:** Seerr requests whole seasons only, and a season
+Jellyfin has even partly can't be requested there. Import the show in Sonarr (*Library Import*,
+monitor *Last Season* or *Missing Episodes*, tick *Start search for missing episodes*); Sonarr keeps
+the existing files and fetches the rest. Then Seerr → *Settings → Jobs & Cache* → *Sonarr Scan* →
+*Run Now* updates Seerr.
+
 **Removing:** in Radarr/Sonarr → the title → *Delete*, with *Delete files* ticked. Deleting only in
 Jellyfin or on disk makes a still-monitored title download again. In Seerr, *Manage → Clear Data*
 on the title lets it be requested again.

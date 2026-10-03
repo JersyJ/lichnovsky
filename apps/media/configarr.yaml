@@ -82,6 +82,12 @@ data:
         api_key: !env PROWLARR_API_KEY
         tags:
           - flaresolverr
+        # Prowlarr pushes this to every indexer in Sonarr/Radarr: skip near-dead torrents, which
+        # stall (behind CGNAT a lone seeder is often unreachable).
+        sync_profiles:
+          data:
+            - name: Standard
+              minimum_seeders: 5
         indexer_proxies:
           data:
             - name: FlareSolverr

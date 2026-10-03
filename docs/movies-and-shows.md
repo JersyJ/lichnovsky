@@ -38,6 +38,9 @@ or laptop. Without Tailscale they don't open outside home. That's on purpose.
 Most things appear within an hour. Something very new or rare can take days: it is found and
 downloaded automatically as soon as a good copy exists, so you don't have to ask again.
 
+**Missing a few episodes** of a show that's already there? Seerr can only ask for whole seasons;
+tell the admin which episodes, and they'll be added.
+
 Movies and shows come in their **original language** (an English film in English), with Czech and
 English subtitles.
 
