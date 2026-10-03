@@ -1,0 +1,135 @@
+# Gokapi: share videos and files through expiring links (share.lichnovsky.eu). Only users with an
+# account can upload. The files are in the R2 bucket lichnovsky-share (cloudflare/share.tf), and
+# viewers download them directly from R2 through presigned links, not through the tunnel.
+# Not backed up: the shares expire after days, and the users take five minutes to make again.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: gokapi
+  namespace: share
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 2Gi   # config, SQLite database, chunks of uploads in progress
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gokapi
+  namespace: share
+  labels:
+    app: gokapi
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: gokapi
+  template:
+    metadata:
+      labels:
+        app: gokapi
+    spec:
+      # Kubernetes would set GOKAPI_PORT=tcp://... for the Service "gokapi", and Gokapi reads that
+      # variable as its own port setting.
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: gokapi
+          image: f0rc3/gokapi:v2.2.4
+          command: ["/app/gokapi"]   # skip run.sh: its DOCKER_NONROOT path needs root
+          env:
+            - { name: TZ, value: "Europe/Prague" }
+            - { name: TMPDIR, value: /tmp }
+            - { name: GOKAPI_CONFIG_DIR, value: /data/config }
+            - { name: GOKAPI_DATA_DIR, value: /data/files }
+            - { name: GOKAPI_LOG_STDOUT, value: "true" }
+            # Client IPs for the logs and the login limit: Traefik's pod network, and Cloudflare's
+            # CF-Connecting-IP on requests that come through the tunnel.
+            - { name: GOKAPI_TRUSTED_PROXIES, value: "10.42.0.0/16" }
+            - { name: GOKAPI_USE_CLOUDFLARE, value: "true" }
+            - { name: GOKAPI_MAX_FILESIZE, value: "5120" }          # MB per file
+            # The browser uploads in chunks of this size, each a separate request. Keep it below
+            # 100 MB: the free Cloudflare plan refuses larger request bodies through the tunnel.
+            - { name: GOKAPI_CHUNK_SIZE_MB, value: "45" }
+            - { name: GOKAPI_MIN_LENGTH_PASSWORD, value: "12" }
+            - { name: GOKAPI_ENABLE_HOTLINK_VIDEOS, value: "true" }  # direct links that Discord can embed
+            - { name: GOKAPI_AWS_BUCKET, value: lichnovsky-share }
+            - { name: GOKAPI_AWS_REGION, value: auto }
+            - { name: GOKAPI_AWS_ENDPOINT, value: "https://b125c4cecdc50a6592a274152b09b350.r2.cloudflarestorage.com" }
+            - { name: GOKAPI_AWS_PROXY_DOWNLOAD, value: "false" }   # viewers get presigned R2 links
+            - name: GOKAPI_AWS_KEY
+              valueFrom:
+                secretKeyRef: { name: gokapi-r2, key: access-key-id }
+            - name: GOKAPI_AWS_KEY_SECRET
+              valueFrom:
+                secretKeyRef: { name: gokapi-r2, key: secret-access-key }
+          ports:
+            - name: http
+              containerPort: 53842
+          volumeMounts:
+            - { name: data, mountPath: /data }
+            - { name: tmp, mountPath: /tmp }
+          readinessProbe:
+            tcpSocket: { port: http }
+            periodSeconds: 15
+          livenessProbe:
+            tcpSocket: { port: http }
+            initialDelaySeconds: 20
+            periodSeconds: 30
+          resources:
+            requests: { cpu: 10m, memory: 48Mi }
+            limits: { memory: 384Mi }   # up to ~150 MiB for each file during an upload
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: gokapi
+        - name: tmp
+          emptyDir:
+            sizeLimit: 2Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gokapi
+  namespace: share
+spec:
+  selector:
+    app: gokapi
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: gokapi
+  namespace: share
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: share.lichnovsky.eu
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: gokapi
+                port:
+                  number: 80

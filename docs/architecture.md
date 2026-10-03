@@ -78,6 +78,7 @@ through the CDN. The tunnel is part of the CDN.
 | DNS | **AdGuard Home** | Ad blocking for the house and split-horizon DNS for the app names |
 | Passwords | **Vaultwarden** | Compatible with Bitwarden and very small |
 | Documents | **Papra** | Simple document archive with a rootless image |
+| File sharing | **Gokapi** + **Cloudflare R2** | Links that expire (for example videos for Discord, which has a 20 MB limit). Only users with an account can upload. Viewers download directly from R2: the CDN terms do not permit video through the tunnel, but R2 is made for it, and its egress is free. |
 | Media | **Jellyfin**, direct play | The Pi 5 has no hardware video encoder. Thus, the media must play without transcoding. |
 | Media automation | **Seerr**, **Sonarr**, **Radarr**, **Prowlarr**, **qBittorrent**, **Bazarr**, **FlareSolverr** | For a request in Seerr, the stack searches, downloads, renames and adds subtitles. Then the title is in Jellyfin. The images are from home-operations: rootless and made for Kubernetes. |
 | Media settings as code | **Configarr** (CronJob, each hour) | Applies from Git: TRaSH-Guides quality profiles and naming, root folders, the download client and the app links of Prowlarr. It does all that Recyclarr does, and more. Buildarr has no maintenance. Notifiarr keeps its configuration on its website. |
@@ -138,9 +139,9 @@ Two apps are different:
 - The media stack (`apps/media/`) is one Argo CD app with one file for each program.
 
 **Namespaces:** Platform components use names for their function (`networking`, `monitoring`,
-`tailscale`, `backups`). Apps use `web`, `vaultwarden`, `papra`, `dns` (AdGuard), `tv` and
-`photos` (Immich). Jellyfin and the media stack share the namespace `tv`, because they share the
-media volume. Uptime Kuma is in `monitoring`.
+`tailscale`, `backups`). Apps use `web`, `vaultwarden`, `papra`, `dns` (AdGuard), `tv`, `share`
+(Gokapi) and `photos` (Immich). Jellyfin and the media stack share the namespace `tv`, because they
+share the media volume. Uptime Kuma is in `monitoring`.
 
 A SealedSecret is encrypted for one namespace and one name. If you move an app to a different
 namespace, you must seal its secrets again.

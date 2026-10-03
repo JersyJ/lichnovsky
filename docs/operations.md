@@ -384,6 +384,39 @@ and Surfshark do not have it.
 
 The Pi 5 can do WireGuard at several hundred Mbit/s. Thus, the Wi-Fi stays the limit, not the VPN.
 
+## Share videos (Gokapi)
+
+Gokapi (`https://share.lichnovsky.eu`) shares files through links that expire. The guide for the
+users is [share.md](share.md).
+
+```
+Uploader ──login──► Gokapi on the Pi (through the tunnel: pages and upload)
+                         │ stores the file
+                         ▼
+                 R2 bucket lichnovsky-share (deletes after 8 days)
+                         ▲
+Viewer ─── link ─────────┘  the video comes directly from R2, not through the tunnel
+```
+
+- **Users:** Only persons with an account can upload. Make the accounts in Gokapi under *Users*.
+  Give them the upload permission, but not the admin permissions.
+- **Expiry:** Each share expires after a number of days or downloads. The uploader selects this.
+  Gokapi then deletes the file. If Gokapi does not delete a file, the R2 rule deletes it after 8
+  days.
+- **Limits:** 5 GB for each file (`GOKAPI_MAX_FILESIZE` in `apps/share/share.yaml`). Gokapi uploads
+  in parts of 45 MB, thus the 100 MB limit of the tunnel has no effect.
+- **No encryption:** R2 must give the video directly to the browser or to Discord. Thus, do not
+  set an encryption level in Gokapi. R2 encrypts the stored data.
+- **Costs:** The free tier of R2 is 10 GB of storage (average for the month). Downloads are free.
+  Because the files stay only some days, you can upload much more than 10 GB each month. A billing
+  notification sends an e-mail if costs start (refer to [setup.md](setup.md), step 8).
+- **No backup:** The shares expire anyway. If the volume is lost, do the setup wizard again and
+  make the accounts again.
+- **Run the setup wizard again:** Add `args: ["--reconfigure"]` to the container in
+  `apps/share/share.yaml`, push, and open `/setup/` at home. Then remove the line and push.
+- **Uploads from outside the home** go through the tunnel. This is acceptable for some uploads. The
+  terms of Cloudflare are mainly about the delivery of video, and that goes directly from R2.
+
 ## Add a second Pi
 
 1. On the new board, do [setup.md](setup.md) step 3, up to and including the host scripts `01` and

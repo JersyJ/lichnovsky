@@ -268,6 +268,7 @@ Then run `scripts/seal.sh <name>` for each secret:
 | `vaultwarden` | An argon2 hash of the admin page password | Make the hash with `kubectl run vw-hash --rm -it --restart=Never --image=vaultwarden/server:1.37.3 -- /vaultwarden hash` |
 | `papra` | None | |
 | `media` | None | API keys for Sonarr, Radarr and Prowlarr, and the qBittorrent password. Shows the qBittorrent login one time. Keep it. |
+| `share` | The R2 access key ID and secret for Gokapi | Make the token in the dashboard: **R2 → Manage API tokens**, *Object Read & Write*, only for the bucket `lichnovsky-share` (step 5 makes the bucket). |
 | `backups` | None | Shows the **restic password** one time. Keep it in the password manager and on paper. The script refuses to run if backup secrets exist. |
 
 The values do not go to the disk or to a command line. They go to `kubeseal` through stdin. Commit
@@ -463,6 +464,31 @@ these short names in the forms below.
 
 To test the stack, request a movie in Seerr. The movie shows in Radarr, then in qBittorrent, and
 after the download in Jellyfin. Bazarr adds subtitles, usually in less than one hour.
+
+**Gokapi** (`https://share.lichnovsky.eu`)
+
+The setup wizard of Gokapi has no login. Thus, do the wizard at home, before the name is public
+(`share.lichnovsky.eu` is not in the tunnel yet).
+
+1. Open `https://share.lichnovsky.eu/setup/` at home.
+2. **Database:** SQLite, with the default location.
+3. **Webserver:** Set *Bind to localhost* **off** (Traefik connects through the pod network) and
+   *Use SSL* **off** (Traefik does TLS). Set the *Public Facing URL* to
+   `https://share.lichnovsky.eu/`. Set *Include filename in download URL* on and *Save IP* off.
+   Set the *Redirection URL* to `https://lichnovsky.eu`.
+4. **Authentication:** *Username/Password*. Make the admin account with a strong password.
+5. **Storage:** *Cloud storage*. The manifest gives the R2 values. Make sure that *Proxy download*
+   is off.
+6. **Encryption:** *None*. With encryption, viewers cannot play a video directly from R2, and
+   Discord cannot show it. R2 encrypts the stored data anyway.
+7. Log in. Under *Users*, make an account for each person who can upload. Give these accounts the
+   permission to upload, but not the admin permissions.
+8. Make the name public: in `cloudflare/tunnel.tf`, add `"share.${var.domain}"` to `public_hosts`.
+   Run `tofu -chdir=cloudflare apply`.
+9. In Cloudflare, go to *Manage Account → Billing → Notifications*. Add a notification for usage
+   costs. Then you get an e-mail if R2 goes over the free tier.
+
+To test, upload a short video and share the link in Discord (refer to [share.md](share.md)).
 
 You set up **AdGuard Home** in step 7.
 

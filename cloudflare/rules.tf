@@ -6,8 +6,8 @@ resource "cloudflare_ruleset" "rate_limit" {
   phase   = "http_ratelimit"
 
   rules = [{
-    description = "Brute-force protection for Vaultwarden and Immich logins"
-    expression  = "(http.request.uri.path contains \"/identity/connect/token\") or (http.request.uri.path contains \"/api/auth/login\")"
+    description = "Brute-force protection for the Vaultwarden, Immich and Gokapi logins"
+    expression  = "(http.request.uri.path contains \"/identity/connect/token\") or (http.request.uri.path contains \"/api/auth/login\") or (http.request.uri.path eq \"/login\")"
     action      = "block"
     ratelimit = {
       characteristics     = ["cf.colo.id", "ip.src"]

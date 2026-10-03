@@ -16,6 +16,7 @@ a Raspberry Pi 5. Argo CD deploys it from this repository.
 | Uptime Kuma | https://status.lichnovsky.eu | Yes | Yes. The status page `/status/home` is public |
 | Argo CD | https://argocd.lichnovsky.eu | Yes | Yes |
 | Grafana | https://grafana.lichnovsky.eu | Yes | Yes |
+| Gokapi (share videos and files, [guide](docs/share.md)) | https://share.lichnovsky.eu | Yes, after the setup wizard | No (Gokapi accounts for upload, public links for download) |
 | Jellyfin | https://tv.lichnovsky.eu | No | – |
 | AdGuard Home | https://dns.lichnovsky.eu | No | – |
 | Seerr (requests for Jellyfin) | https://watchlist.lichnovsky.eu | No | – |
@@ -36,6 +37,7 @@ All apps are also available at home and through Tailscale. For the details, refe
   troubleshooting
 - [movies-and-series.md](docs/movies-and-series.md): for family members. How to watch in Jellyfin
   and how to make requests in Seerr
+- [share.md](docs/share.md): for persons with a Gokapi account. How to share a video with a link
 
 ## Layout
 

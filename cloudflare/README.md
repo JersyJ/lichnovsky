@@ -3,6 +3,7 @@
 OpenTofu controls all of the Cloudflare configuration:
 
 - the tunnel and its public hostnames
+- the R2 bucket `lichnovsky-share` for Gokapi, with a rule that deletes objects after 8 days
 - DNS
 - Access
 - the rate limit and the cache rule
@@ -38,6 +39,7 @@ state (AES-GCM, with a key from your passphrase), because the state contains the
    | Account Filter Lists: Edit | Zone WAF: Edit |
    | Workers Scripts: Edit | Cache Rules: Edit |
    | Workers KV Storage: Edit | |
+   | Workers R2 Storage: Edit | |
 
 4. **Zero Trust:** Select a team name and the Free plan. Access does not work before you do this
    step.
