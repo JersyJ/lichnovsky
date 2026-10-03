@@ -50,11 +50,12 @@ spec:
               containerPort: 5055
           volumeMounts:
             - { name: config, mountPath: /app/config }
+          # Not /api/v1/status: it waits for the GitHub API (no timeout), so a slow GitHub fails the probes.
           readinessProbe:
-            httpGet: { path: /api/v1/status, port: http }
+            httpGet: { path: /api/v1/settings/public, port: http }
             periodSeconds: 15
           livenessProbe:
-            httpGet: { path: /api/v1/status, port: http }
+            httpGet: { path: /api/v1/settings/public, port: http }
             initialDelaySeconds: 60
             periodSeconds: 30
           resources:

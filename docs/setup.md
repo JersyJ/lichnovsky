@@ -459,8 +459,9 @@ these short names in the forms below.
      WAN IP of the router is `10.x` or `100.64.x`), a port forward cannot work. A VPN with port
      forwarding solves this ([operations.md](operations.md#vpn-for-qbittorrent-planned)).
    - **Uptime Kuma:** The names of the stack are private. Thus, the monitors must use the URLs in
-     the cluster, for example `http://seerr.tv.svc.cluster.local/api/v1/status` and
-     `http://sonarr.tv.svc.cluster.local/ping`.
+     the cluster, for example `http://seerr.tv.svc.cluster.local/api/v1/settings/public` and
+     `http://sonarr.tv.svc.cluster.local/ping`. Do not use `/api/v1/status` for Seerr: it waits for
+     the GitHub API, and a slow GitHub makes the monitor fail.
 
 To test the stack, request a movie in Seerr. The movie shows in Radarr, then in qBittorrent, and
 after the download in Jellyfin. Bazarr adds subtitles, usually in less than one hour.
