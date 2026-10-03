@@ -16,7 +16,7 @@ a Raspberry Pi 5. Argo CD deploys it from this repository.
 | Uptime Kuma | https://status.lichnovsky.eu | Yes | Yes. The status page `/status/home` is public |
 | Argo CD | https://argocd.lichnovsky.eu | Yes | Yes |
 | Grafana | https://grafana.lichnovsky.eu | Yes | Yes |
-| Gokapi (share videos and files, [guide](docs/share.md)) | https://share.lichnovsky.eu | Yes, after the setup wizard | No (Gokapi accounts for upload, public links for download) |
+| Gokapi (share videos and files, [guide](docs/share.md)) | https://share.lichnovsky.eu | Yes | No (Gokapi accounts for upload, public links for download) |
 | Jellyfin | https://tv.lichnovsky.eu | No | – |
 | AdGuard Home | https://dns.lichnovsky.eu | No | – |
 | Seerr (requests for Jellyfin) | https://watchlist.lichnovsky.eu | No | – |

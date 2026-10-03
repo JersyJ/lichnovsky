@@ -20,6 +20,7 @@ locals {
     "status.${var.domain}",
     "argocd.${var.domain}",
     "grafana.${var.domain}",
+    "share.${var.domain}", # Gokapi: pages and uploads only; videos come from R2 directly
   ]
 }
 

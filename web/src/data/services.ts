@@ -1,4 +1,6 @@
-// Everything the start page's network map shows. Each service is a station on its line, in order.
+// Everything the start page's network map shows. Each service is a station on its line, in order:
+// on Apps from open to everyone (public, then sign-in) to home only, then planned. Within a group,
+// long descriptions take the stations below the line, where the compact map has room for them.
 // `monitor` is the monitor's name on the public Uptime Kuma status page "home"; stations without
 // one show an empty ring.
 
@@ -32,14 +34,16 @@ export const lines: Line[] = [
     services: [
       { name: "lichnovsky.eu", description: "This page", url: "https://lichnovsky.eu",
         access: "public", self: true },
+      { name: "Gokapi", description: "File Sharing", url: "https://share.lichnovsky.eu/admin",
+        access: "public", monitor: "Gokapi" },
       { name: "Vaultwarden", description: "Passwords", url: "https://vault.lichnovsky.eu",
         access: "public", monitor: "Vaultwarden" },
       { name: "Papra", description: "Documents", url: "https://papra.lichnovsky.eu",
         access: "sign-in", monitor: "Papra" },
-      { name: "Jellyfin", description: "Movies & Series", url: "https://tv.lichnovsky.eu",
-        access: "private", monitor: "Jellyfin" },
       { name: "Seerr", description: "Watchlist", url: "https://watchlist.lichnovsky.eu",
         access: "private", monitor: "Seerr" },
+      { name: "Jellyfin", description: "Movies & Series", url: "https://tv.lichnovsky.eu",
+        access: "private", monitor: "Jellyfin" },
       { name: "Immich", description: "Photos", url: "https://photos.lichnovsky.eu",
         access: "public", planned: true },
     ],

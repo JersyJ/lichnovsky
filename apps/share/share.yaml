@@ -1,6 +1,7 @@
 # Gokapi: share videos and files through expiring links (share.lichnovsky.eu). Only users with an
-# account can upload. The files are in the R2 bucket lichnovsky-share (cloudflare/share.tf), and
-# viewers download them directly from R2 through presigned links, not through the tunnel.
+# account can upload. Uploads go to Gokapi (in chunks), which then sends each file to the R2 bucket
+# lichnovsky-share (cloudflare/share.tf). Viewers download directly from R2 through presigned links,
+# not through the Pi or the tunnel.
 # Not backed up: the shares expire after days, and the users take five minutes to make again.
 # Mounted at Gokapi's own paths (/app/config, /app/data): its setup checks that both are volumes.
 apiVersion: v1
@@ -62,7 +63,6 @@ spec:
           command: ["/app/gokapi"]   # skip run.sh: its DOCKER_NONROOT path needs root
           env:
             - { name: TZ, value: "Europe/Prague" }
-            - { name: TMPDIR, value: /tmp }
             - { name: GOKAPI_LOG_STDOUT, value: "true" }
             # Client IPs for the logs and the login limit: Traefik's pod network, and Cloudflare's
             # CF-Connecting-IP on requests that come through the tunnel.
@@ -89,7 +89,7 @@ spec:
               containerPort: 53842
           volumeMounts:
             - { name: config, mountPath: /app/config }
-            - { name: data, mountPath: /app/data }
+            - { name: data, mountPath: /app/data }   # also chunks of uploads, before Gokapi sends them to R2
             - { name: tmp, mountPath: /tmp }
           readinessProbe:
             tcpSocket: { port: http }
@@ -113,9 +113,9 @@ spec:
         - name: data
           persistentVolumeClaim:
             claimName: gokapi-data
-        - name: tmp
+        - name: tmp   # Gokapi puts its temporary files in /app/data (TMPDIR is not set)
           emptyDir:
-            sizeLimit: 2Gi
+            sizeLimit: 64Mi
 ---
 apiVersion: v1
 kind: Service

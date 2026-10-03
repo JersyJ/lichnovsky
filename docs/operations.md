@@ -405,6 +405,9 @@ Viewer ─── link ─────────┘  the video comes directly f
   days.
 - **Limits:** 5 GB for each file (`GOKAPI_MAX_FILESIZE` in `apps/share/share.yaml`). Gokapi uploads
   in parts of 45 MB, thus the 100 MB limit of the tunnel has no effect.
+- **Upload path:** The browser sends the parts to Gokapi on the Pi. Gokapi puts them together on
+  the NVMe (`/app/data`), calculates the hash, sends the file to R2 and deletes the local copy. Only
+  the downloads go directly from R2.
 - **No encryption:** R2 must give the video directly to the browser or to Discord. Thus, do not
   set an encryption level in Gokapi. R2 encrypts the stored data.
 - **Costs:** The free tier of R2 is 10 GB of storage (average for the month). Downloads are free.
