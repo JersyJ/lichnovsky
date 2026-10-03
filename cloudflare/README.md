@@ -43,6 +43,10 @@ state (AES-GCM, with a key from your passphrase), because the state contains the
 
 4. **Zero Trust:** Select a team name and the Free plan. Access does not work before you do this
    step.
+5. **Notifications → Add → Billing Budget Alert:** Set the threshold to $0.01. Then you get an
+   e-mail at the first cost above the free tiers (for example R2 storage above 10 GB). The OpenTofu
+   provider (5.27) does not support budget alerts yet. When a version does, move the alert into
+   OpenTofu with an `import` block.
 
 The account ID and the zone ID are in `terraform.tfvars`. The DNS token for cert-manager is a
 different token. You make it by hand, refer to [docs/setup.md, step 1](../docs/setup.md#1-accounts).

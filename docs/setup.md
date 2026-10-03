@@ -486,8 +486,9 @@ The setup wizard of Gokapi has no login. Thus, do the wizard at home, before the
    permission to upload, but not the admin permissions.
 8. Make the name public: in `cloudflare/tunnel.tf`, add `"share.${var.domain}"` to `public_hosts`.
    Run `tofu -chdir=cloudflare apply`.
-9. In Cloudflare, go to *Manage Account → Billing → Notifications*. Add a notification for usage
-   costs. Then you get an e-mail if R2 goes over the free tier.
+9. If you did not do it in step 5: in Cloudflare, add the budget alert of $0.01 (refer to
+   [cloudflare/README.md](../cloudflare/README.md), step 5). Then you get an e-mail if R2 goes over
+   the free tier.
 
 To test, upload a short video and share the link in Discord (refer to [share.md](share.md)).
 

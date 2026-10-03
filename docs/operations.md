@@ -417,8 +417,10 @@ Viewer ─── link ─────────┘  the video comes directly f
   set an encryption level in Gokapi. R2 encrypts the stored data.
 - **Costs:** The free tier of R2 is 10 GB of storage (average for the month). Downloads are free.
   Because each file stays at most 14 days, you can upload approximately 20 GB each month for free.
-  Above that, each additional 10 GB of average storage costs approximately $0.15 each month. A billing
-  notification sends an e-mail if costs start (refer to [setup.md](setup.md), step 8).
+  Above that, each additional 10 GB of average storage costs approximately $0.15 each month. A
+  Cloudflare budget alert of $0.01 sends an e-mail at the first cost (refer to
+  [cloudflare/README.md](../cloudflare/README.md)). Neither R2 nor Gokapi can set a hard storage
+  limit.
 - **No backup:** The shares expire anyway. If the volume is lost, do the setup wizard again and
   make the accounts again.
 - **Run the setup wizard again:** Add `args: ["--reconfigure"]` to the container in
