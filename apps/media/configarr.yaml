@@ -15,6 +15,8 @@ data:
         api_key: !env SONARR_API_KEY
         quality_definition:
           type: series
+        delete_unmanaged_quality_profiles:   # the built-in Any, SD, HD-720p, Ultra-HD, ...
+          enabled: true
         include:
           - template: 72dae194fc92bf828f32cde7744e51a1   # TRaSH WEB-1080p
             source: TRASH
@@ -49,9 +51,31 @@ data:
         api_key: !env RADARR_API_KEY
         quality_definition:
           type: movie
+        delete_unmanaged_quality_profiles:   # the built-in Any, SD, HD-720p, Ultra-HD, ...
+          enabled: true
         include:
-          - template: d1d67249d3890e49bc12e275d989a7e9   # TRaSH HD Bluray + WEB
+          - template: d1d67249d3890e49bc12e275d989a7e9   # TRaSH HD Bluray + WEB (the default)
             source: TRASH
+          - template: 64fb5f9858489bdac2af690e27c8f42f   # TRaSH UHD Bluray + WEB, reshaped below
+            source: TRASH
+        # "4K, else 1080p", chosen per movie (Seerr: Advanced, or Radarr): grabs 2160p if it exists,
+        # otherwise 1080p, and upgrades to 2160p later. The Pi can't transcode 4K, so it plays only
+        # on devices that decode it themselves (TV apps; not most browsers).
+        quality_profiles:
+          - name: UHD Bluray + WEB
+            upgrade:
+              allowed: true
+              until_quality: Bluray-2160p
+            qualities:
+              - name: Bluray-2160p
+              - name: WEB 2160p
+                qualities: [WEBDL-2160p, WEBRip-2160p]
+              - name: Bluray-1080p
+              - name: WEB 1080p
+                qualities: [WEBDL-1080p, WEBRip-1080p]
+        renameQualityProfiles:
+          - from: UHD Bluray + WEB
+            to: 4K, else 1080p
         media_naming:
           folder: jellyfin-tmdb
           movie:

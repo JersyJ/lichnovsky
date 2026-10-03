@@ -202,6 +202,13 @@ A better release later replaces the file (an upgrade).
 icon) lists every release found, with the reason a rejected one doesn't fit; the download icon grabs
 one. For a specific cut, or when the automatic search finds nothing acceptable.
 
+**4K:** the default is 1080p (*HD Bluray + WEB*). For a movie you want in 4K, choose the profile
+**4K, else 1080p**: in Seerr's request dialog under *Advanced* (admins and users allowed advanced
+requests), or later in Radarr → the movie → *Edit*. It takes 2160p if it exists, otherwise 1080p,
+and upgrades to 2160p when one appears. The Pi can't transcode 4K: it plays only on devices that
+decode 4K HEVC/HDR themselves (the TV apps; not most browsers or older phones), and a 4K movie
+takes 15–60 GB.
+
 **Language:** the profiles accept the original language only (an English film in English); dubbed
 releases are rejected, and Bazarr supplies Czech and English subtitles. To allow dubbing, change the
 language settings in `apps/media/configarr.yaml`.
