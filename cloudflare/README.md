@@ -1,27 +1,34 @@
 # cloudflare/
 
-Everything on the Cloudflare side as OpenTofu: tunnel and its public hostnames, DNS, Access, rate
-limit and cache rule, TLS settings, DNSSEC and the heartbeat Worker.
+OpenTofu controls all of the Cloudflare configuration:
 
-State: Cloudflare R2 bucket `lichnovsky-tofu-state`, **encrypted by OpenTofu**
-(AES-GCM, key derived from your passphrase) due to tunnel secret.
+- the tunnel and its public hostnames
+- DNS
+- Access
+- the rate limit and the cache rule
+- the TLS settings and DNSSEC
+- the heartbeat Worker
+
+The OpenTofu state is in the Cloudflare R2 bucket `lichnovsky-tofu-state`. OpenTofu encrypts the
+state (AES-GCM, with a key from your passphrase), because the state contains the tunnel secret.
 
 ## Secrets
 
-| Variable | What |
+| Variable | Function |
 |---|---|
-| `CLOUDFLARE_API_TOKEN` | OpenTofu token (below) |
-| `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | R2 token; R2 speaks the S3 API, nothing talks to AWS |
-| `TF_VAR_state_passphrase` | encrypts the state; **lose it and the state is unreadable** (resources would have to be re-imported) |
-| `TF_VAR_discord_webhook_url` | where the heartbeat Worker posts |
+| `CLOUDFLARE_API_TOKEN` | The OpenTofu token (refer to the steps below) |
+| `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | The R2 token. R2 uses the S3 API. No data goes to AWS. |
+| `TF_VAR_state_passphrase` | Encrypts the state. **If you lose it, you cannot read the state.** Then you must import all resources again. |
+| `TF_VAR_discord_webhook_url` | The heartbeat Worker sends its messages to this webhook. |
 
-## One-time setup in the dashboard
+## Do these steps one time in the dashboard
 
-1. **R2** → enable (may ask for a payment method; the free tier covers this many times over) →
-   *Create bucket* `lichnovsky-tofu-state`.
-2. **R2 → Manage API tokens** → *Object Read & Write*, only bucket `lichnovsky-tofu-state`.
-3. **My Profile → API Tokens → Custom token**, account resources: your account, zone resources:
-   `lichnovsky.eu`:
+1. **R2:** Enable R2. Cloudflare can ask for a payment method. The free tier is sufficient. Make
+   the bucket `lichnovsky-tofu-state` (*Create bucket*).
+2. **R2 → Manage API tokens:** Make a token with *Object Read & Write*, only for the bucket
+   `lichnovsky-tofu-state`.
+3. **My Profile → API Tokens → Custom token:** Set the account resources to your account. Set the
+   zone resources to `lichnovsky.eu`. Give these permissions:
 
    | Account | Zone |
    |---|---|
@@ -32,7 +39,8 @@ State: Cloudflare R2 bucket `lichnovsky-tofu-state`, **encrypted by OpenTofu**
    | Workers Scripts: Edit | Cache Rules: Edit |
    | Workers KV Storage: Edit | |
 
-4. **Zero Trust** → pick a team name and the Free plan (needed once before Access works).
+4. **Zero Trust:** Select a team name and the Free plan. Access does not work before you do this
+   step.
 
-The account and zone IDs are in `terraform.tfvars`. The cert-manager DNS token is separate and
-made by hand ([docs/setup.md, step 1](../docs/setup.md#1-accounts)).
+The account ID and the zone ID are in `terraform.tfvars`. The DNS token for cert-manager is a
+different token. You make it by hand, refer to [docs/setup.md, step 1](../docs/setup.md#1-accounts).

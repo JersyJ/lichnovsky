@@ -36,7 +36,7 @@ export const lines: Line[] = [
         access: "public", monitor: "Vaultwarden" },
       { name: "Papra", description: "Documents", url: "https://papra.lichnovsky.eu",
         access: "sign-in", monitor: "Papra" },
-      { name: "Jellyfin", description: "Movies & Shows", url: "https://tv.lichnovsky.eu",
+      { name: "Jellyfin", description: "Movies & Series", url: "https://tv.lichnovsky.eu",
         access: "private", monitor: "Jellyfin" },
       { name: "Seerr", description: "Watchlist", url: "https://watchlist.lichnovsky.eu",
         access: "private", monitor: "Seerr" },
