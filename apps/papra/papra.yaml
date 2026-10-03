@@ -41,7 +41,7 @@ spec:
       # The PVC hides the image's app-data/db and documents dirs, and SQLite won't create them.
       initContainers:
         - name: init-dirs
-          image: ghcr.io/papra-hq/papra:26.6.2-rootless
+          image: ghcr.io/papra-hq/papra:26.7.0-rootless
           command: ["mkdir", "-p", "/app/app-data/db", "/app/app-data/documents"]
           volumeMounts:
             - { name: data, mountPath: /app/app-data }
@@ -51,7 +51,7 @@ spec:
               drop: ["ALL"]
       containers:
         - name: papra
-          image: ghcr.io/papra-hq/papra:26.6.2-rootless
+          image: ghcr.io/papra-hq/papra:26.7.0-rootless
           env:
             - { name: APP_BASE_URL, value: "https://papra.lichnovsky.eu" }
             # Access doesn't cover LAN/Tailscale, so open sign-ups would let anyone there register.
