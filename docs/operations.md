@@ -318,16 +318,71 @@ request the title again, use *Manage → Clear Data* on the title in Seerr.
   belong to UID 1000. On the Pi, run `sudo chown -R 1000:1000 /srv/media`.
 - **Settings change back:** Configarr does this. Change `apps/media/configarr.yaml` instead.
 
-**VPN later:** qBittorrent has no VPN at this time. It connects from the home IP address. To add a
-VPN:
+### VPN for qBittorrent (planned)
 
-1. Get a provider with port forwarding (for example ProtonVPN or AirVPN).
-2. Add a [Gluetun](https://github.com/qdm12/gluetun) sidecar to the qBittorrent pod, with the
-   WireGuard key of the provider (a new case in `seal.sh`).
-3. Remove the LoadBalancer `qbittorrent-bt` and the port forward on the router.
+At this time, qBittorrent has no VPN. Peers in each swarm see the home IP address, and the ISP sees
+which data qBittorrent downloads. The home connection is probably behind CGNAT. Thus, other peers
+cannot connect to qBittorrent, and a port forward on the router cannot solve this.
 
-Then all traffic of qBittorrent goes through the VPN. If the VPN is down, the firewall of Gluetun
-blocks the traffic.
+**How a VPN solves this:**
+
+```
+┌ qBittorrent pod ─────────────────────────┐
+│ qBittorrent ──► Gluetun ══WireGuard══════╪══► VPN server ──► peers
+│                 (kill switch)            │      peers see the IP address of the VPN server
+└──────────────────────────────────────────┘      the ISP sees only encrypted traffic
+```
+
+- [Gluetun](https://github.com/qdm12/gluetun) is a sidecar container in the qBittorrent pod
+  (approximately 30–50 MB RAM). The two containers share one network. Thus, all traffic of
+  qBittorrent goes through the WireGuard tunnel of Gluetun.
+- **Kill switch:** The firewall of Gluetun blocks all traffic outside the tunnel. If the VPN is
+  down, qBittorrent has no connection. It cannot use the home IP address.
+- **Port forwarding:** The provider opens a port on its server and sends the traffic through the
+  tunnel to qBittorrent. Then peers can connect to qBittorrent, also behind CGNAT.
+- Only qBittorrent uses the VPN. All other apps use the normal connection.
+
+**Provider:** The provider must have port forwarding. Mullvad and IVPN removed it in 2023. NordVPN
+and Surfshark do not have it.
+
+| Provider | Port forwarding | Notes |
+|---|---|---|
+| **ProtonVPN Plus** (recommended) | Automatic (NAT-PMP). The port changes at each connection. | Gluetun gets the port and sets it in qBittorrent automatically. Swiss, audited no-logs policy. |
+| **AirVPN** (alternative) | Fixed. You select the port one time in the client area. | Popular for torrents. You set the port in qBittorrent one time. |
+| Private Internet Access | Automatic | Low price. Based in the USA, owned by Kape. |
+
+**Changes in the cluster:**
+
+1. Make a new namespace `downloads` for qBittorrent and Gluetun. Gluetun needs the capability
+   `NET_ADMIN`. The namespace `tv` has the Pod Security level baseline, which does not permit
+   `NET_ADMIN`. Thus, only this pod gets a namespace with a higher level.
+2. Add a second PersistentVolume for `/srv/media` with a PVC in `downloads`. The mount path stays
+   `/media`. Thus, imports stay hardlinks.
+3. Add Gluetun to the qBittorrent pod. Set `VPN_SERVICE_PROVIDER`, `VPN_TYPE=wireguard` and
+   `VPN_PORT_FORWARDING=on`. For ProtonVPN, `VPN_PORT_FORWARDING_UP_COMMAND` sends the new port to
+   the qBittorrent API on `127.0.0.1:8080` (`WebUI\LocalHostAuth=false` permits this).
+4. Add a case `vpn` in `scripts/seal.sh` for the WireGuard private key (and the address, if the
+   provider gives one).
+5. In `apps/media/configarr.yaml`, change the qBittorrent host to `qbittorrent.downloads`.
+6. Remove the LoadBalancer `qbittorrent-bt` and the router port forward, if one exists.
+7. Optional: Gluetun has an HTTP proxy. Add it as an indexer proxy in Prowlarr (through Configarr).
+   Then Prowlarr searches also go through the VPN. This helps if the ISP blocks torrent sites.
+
+**Steps for the admin:**
+
+1. Buy the subscription.
+2. In the dashboard of the provider, make a WireGuard configuration. For ProtonVPN, select a P2P
+   server and enable port forwarding.
+3. Run `scripts/seal.sh vpn` and enter the private key.
+4. Commit and push.
+
+**Tests before use:**
+
+- The IP address that peers see is the address of the VPN server, not the home IP address.
+- Kill switch: Stop the VPN in Gluetun. qBittorrent must then have no connection.
+- The forwarded port is open. qBittorrent shows the connection status as connected, not firewalled.
+
+The Pi 5 can do WireGuard at several hundred Mbit/s. Thus, the Wi-Fi stays the limit, not the VPN.
 
 ## Add a second Pi
 

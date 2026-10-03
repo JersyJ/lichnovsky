@@ -1,6 +1,6 @@
 # Torrent client. Downloads land in /media/downloads; Sonarr/Radarr hardlink finished files into
 # /media/shows and /media/movies (same filesystem), so seeding doesn't take extra space.
-# No VPN yet: to add one later, put a Gluetun sidecar in this pod.
+# No VPN yet. The plan (Gluetun sidecar, own namespace): docs/operations.md, "VPN for qBittorrent".
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:

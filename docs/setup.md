@@ -456,7 +456,7 @@ these short names in the forms below.
    - **Router:** Forward port `50413` TCP+UDP to `192.168.50.244` for incoming peers. This gives
      faster downloads from more sources. It works only with a public IPv4 address. Behind CGNAT (the
      WAN IP of the router is `10.x` or `100.64.x`), a port forward cannot work. A VPN with port
-     forwarding solves this ([operations.md](operations.md#media-stack)).
+     forwarding solves this ([operations.md](operations.md#vpn-for-qbittorrent-planned)).
    - **Uptime Kuma:** The names of the stack are private. Thus, the monitors must use the URLs in
      the cluster, for example `http://seerr.tv.svc.cluster.local/api/v1/status` and
      `http://sonarr.tv.svc.cluster.local/ping`.
