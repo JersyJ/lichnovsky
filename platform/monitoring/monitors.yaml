@@ -64,6 +64,20 @@ spec:
           labels: { severity: warning }
           annotations:
             summary: "Pi SoC is {{ $value }}°C, so it will start throttling at 80-85°C. Check the fan."
+        - alert: PiUnderVoltage
+          # Firmware under-voltage flag (rpi_volt hwmon), 1 while the 5V input sags. Causes throttling
+          # and storage corruption. Sampled every scrape, so dips shorter than 60s can slip through.
+          expr: max(node_hwmon_in_lcrit_alarm_volts{chip=~".*raspberrypi_hwmon"}) > 0
+          labels: { severity: critical }
+          annotations:
+            summary: "Pi is under-volted. Check the power supply and cable."
+        - alert: PiFanStopped
+          # The fan idles at 0 RPM below ~50°C, so only alarm when it should be spinning.
+          expr: max(node_hwmon_fan_rpm{chip="platform_cooling_fan"}) == 0 and max(node_thermal_zone_temp{type="cpu-thermal"}) > 60
+          for: 5m
+          labels: { severity: warning }
+          annotations:
+            summary: "Pi fan reads 0 RPM while the SoC is above 60°C. Check the fan cable or clean the fan."
         - alert: CloudflareTunnelDown
           expr: sum(cloudflared_tunnel_ha_connections) < 1 or absent(cloudflared_tunnel_ha_connections)
           for: 5m
