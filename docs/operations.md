@@ -73,7 +73,7 @@ repository (`--private-repos`).
 ```
 Vaultwarden ── vaultwarden backup (02:30) ──┐
 Immich DB ──── pg_dump (03:00) ─────────────┤
-Papra, Uptime Kuma, AdGuard, media stack ───┼──► k8up/restic (03:30-04:20) ──► rest-server ──► /srv/backup/restic/<ns>
+Papra, Uptime Kuma, AdGuard, media, Gokapi ─┼──► k8up/restic (03:30-04:25) ──► rest-server ──► /srv/backup/restic/<ns>
 k3s etcd snapshots (each 12 h) ─────────────┴─────────────────────────────────────────────────► /srv/backup/etcd
 ```
 
@@ -82,9 +82,9 @@ k3s etcd snapshots (each 12 h) ─────────────┴──�
 | Manifests, configuration, sealed secrets | GitHub | Each push |
 | Private key of Sealed Secrets | Password manager and offline | After the installation, and again from time to time (the key changes each 30 days) |
 | restic password, Grafana password, k3s token | Password manager | When you make them |
-| Vaultwarden, Papra, Uptime Kuma, AdGuard, media stack settings (Sonarr, Radarr, Prowlarr, Bazarr, Seerr, qBittorrent) | SD card | Each day. Keep 7 daily, 4 weekly, 6 monthly. `restic check` each week. |
+| Vaultwarden, Papra, Uptime Kuma, AdGuard, media stack settings (Sonarr, Radarr, Prowlarr, Bazarr, Seerr, qBittorrent), Gokapi settings and database | SD card | Each day. Keep 7 daily, 4 weekly, 6 monthly. `restic check` each week. |
 | etcd (cluster state) | SD card | Each 12 hours. Keep 10. |
-| **No backup:** Prometheus and Loki data, Jellyfin configuration and media (also the downloads), Immich photo library | – | You can make them again, or they are too large for the card |
+| **No backup:** Prometheus and Loki data, Jellyfin configuration and media (also the downloads), Immich photo library, the files that Gokapi shares (they are in R2 and expire) | – | You can make them again, or they are too large for the card |
 
 **If you lose the restic password, you cannot read the backups.**
 

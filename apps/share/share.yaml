@@ -2,13 +2,15 @@
 # account can upload. Uploads go to Gokapi (in chunks), which then sends each file to the R2 bucket
 # lichnovsky-share (cloudflare/share.tf). Viewers download directly from R2 through presigned links,
 # not through the Pi or the tunnel.
-# Not backed up: the shares expire after days, and the users take five minutes to make again.
+# Backed up: settings and database (users, shares). Not the shared files: those are only in R2.
 # Mounted at Gokapi's own paths (/app/config, /app/data): its setup checks that both are volumes.
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: gokapi-config
   namespace: share
+  annotations:
+    k8up.io/backup: "true"
 spec:
   accessModes: ["ReadWriteOnce"]
   storageClassName: local-path
@@ -21,6 +23,8 @@ kind: PersistentVolumeClaim
 metadata:
   name: gokapi-data
   namespace: share
+  annotations:
+    k8up.io/backup: "true"
 spec:
   accessModes: ["ReadWriteOnce"]
   storageClassName: local-path
