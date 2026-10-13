@@ -8,7 +8,7 @@ set -euo pipefail
 
 # One entry per fan level: on at TEMPS °C, off 5 °C lower, PWM speed 0-255.
 TEMPS=(55 68 72 75)
-SPEEDS=(40 80 150 255)
+SPEEDS=(50 80 150 255)
 
 CONFIG=/boot/firmware/config.txt
 cp -n "$CONFIG" "$CONFIG.bak-before-fan"
