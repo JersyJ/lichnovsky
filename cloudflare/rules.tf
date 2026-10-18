@@ -36,3 +36,23 @@ resource "cloudflare_ruleset" "cache" {
     }
   }]
 }
+
+# Drop the X-Forwarded-For that a visitor sends. Cloudflare adds it again with only the visitor's
+# IP, so the first entry is the real client (Vaultwarden reads it; Traefik logs it).
+resource "cloudflare_ruleset" "request_headers" {
+  zone_id = var.zone_id
+  name    = "Request header changes"
+  kind    = "zone"
+  phase   = "http_request_late_transform"
+
+  rules = [{
+    description = "Remove the visitor's own X-Forwarded-For"
+    expression  = "true"
+    action      = "rewrite"
+    action_parameters = {
+      headers = {
+        "X-Forwarded-For" = { operation = "remove" }
+      }
+    }
+  }]
+}
