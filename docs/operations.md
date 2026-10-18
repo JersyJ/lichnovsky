@@ -41,8 +41,9 @@ script renders all charts, validates all manifests and checks the sync order.
 
 - **Alertmanager → Discord.** Alertmanager groups the alerts by namespace and alert name. It sends
   an active alert again each 12 hours, and it sends a message when the problem is solved.
-  `platform/monitoring/monitors.yaml` adds alerts for the Pi temperature, the tunnel and the memory
-  pressure. To test Alertmanager:
+  `platform/monitoring/monitors.yaml` adds alerts for the Pi temperature, the tunnel, the memory
+  pressure, and `BackupMissing` (no successful backup of a namespace for 36 hours). To test
+  Alertmanager:
   ```bash
   kubectl -n monitoring port-forward svc/kube-prometheus-stack-alertmanager 9093 &
   curl -XPOST localhost:9093/api/v2/alerts -H 'Content-Type: application/json' \

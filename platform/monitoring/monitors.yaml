@@ -46,6 +46,21 @@ spec:
     - port: metrics
       interval: 60s
 ---
+# Backup counters per backed-up namespace. honorLabels keeps that `namespace` label instead of k8up's own.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: k8up
+  namespace: k8up
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: k8up
+  endpoints:
+    - port: http
+      interval: 60s
+      honorLabels: true
+---
 # Key alerts for a one-node homelab. The kube-prometheus-stack defaults already cover pods,
 # nodes, disks and PVCs; these add Pi-specific failure modes.
 apiVersion: monitoring.coreos.com/v1
@@ -90,3 +105,15 @@ spec:
           labels: { severity: warning }
           annotations:
             summary: "Less than 10% RAM available on {{ $labels.instance }}. Expect OOM kills."
+        - alert: BackupMissing
+          # Summed per namespace so a k8up restart (new series) doesn't hide or fake a backup. The
+          # `offset 36h` part skips namespaces (and fresh Prometheus data) younger than the window.
+          expr: >-
+            sum by (namespace) (increase(k8up_jobs_successful_counter{jobType="backup"}[36h])) < 0.5
+            and on (namespace) count by (namespace) (k8up_jobs_successful_counter{jobType="backup"} offset 36h)
+          for: 30m
+          labels: { severity: warning }
+          annotations:
+            summary: >-
+              No successful backup of {{ $labels.namespace }} for 36 hours.
+              Check `kubectl -n {{ $labels.namespace }} get backups,jobs,events`.

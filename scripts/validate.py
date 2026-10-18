@@ -11,6 +11,8 @@
    Folders with a kustomization.yaml are rendered with `kubectl kustomize` first, as Argo CD does.
 3. Stage check: every custom resource in an enabled app (argocd/*.yaml) needs its CRD from an
    enabled chart or from k3s, otherwise the sync fails.
+4. Backup check: a namespace with a k8up Schedule must not enforce `restricted` Pod Security,
+   because the restic pods run as root and would never start.
 
 Charts and schemas are cached in ~/.cache/lichnovsky, so repeat runs are fast.
 Needs helm, kubectl and kubeconform. Run it with `prek run validate-manifests --hook-stage pre-push`.
@@ -111,6 +113,19 @@ def stage_check(rendered_enabled, kustomized):
     return problems
 
 
+def backup_check(manifests):
+    enforce, scheduled = {}, set()
+    for m in manifests:
+        for d in docs(m):
+            meta = d.get("metadata", {})
+            if d.get("kind") == "Namespace":
+                enforce[meta["name"]] = (meta.get("labels") or {}).get("pod-security.kubernetes.io/enforce")
+            elif d.get("kind") == "Schedule" and d.get("apiVersion", "").startswith("k8up.io/"):
+                scheduled.add(meta.get("namespace"))
+    return [f"namespace {ns} has a k8up Schedule but enforces restricted Pod Security; use baseline"
+            for ns in sorted(scheduled) if enforce.get(ns) == "restricted"]
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--k8s-version", default="1.36.0")
@@ -162,6 +177,13 @@ def main():
         failed |= bool(problems)
         if not problems:
             print("stage ok   every custom resource in enabled apps has its CRD installed")
+
+        problems = backup_check(plain)
+        for p in problems:
+            print(f"backup FAIL {p}")
+        failed |= bool(problems)
+        if not problems:
+            print("backup ok  restic pods can start in every backed-up namespace")
 
     sys.exit(1 if failed else 0)
 
