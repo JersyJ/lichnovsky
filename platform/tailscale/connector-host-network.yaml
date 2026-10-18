@@ -1,0 +1,37 @@
+# Puts the Connector pod on the Pi's own network. In the pod network, flannel masquerades with
+# --random-fully: each peer sees another source port ("hard NAT"), so remote devices fall back to
+# a slow DERP relay. On the host network, the NAT is easy and connections become direct.
+# The operator has no hostNetwork option, so this changes the pod when it is created.
+# failurePolicy Ignore: if the policy fails, the pod still starts, in the pod network (relay).
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingAdmissionPolicy
+metadata:
+  name: tailscale-connector-host-network
+spec:
+  failurePolicy: Ignore
+  reinvocationPolicy: Never
+  matchConstraints:
+    namespaceSelector:
+      matchLabels: { kubernetes.io/metadata.name: tailscale }
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["CREATE"]
+        resources: ["pods"]
+  matchConditions:
+    - name: pi-lan-connector
+      expression: >-
+        object.metadata.?labels[?"tailscale.com/parent-resource-type"].orValue("") == "connector" &&
+        object.metadata.?labels[?"tailscale.com/parent-resource"].orValue("") == "pi-lan"
+  mutations:
+    - patchType: ApplyConfiguration
+      applyConfiguration:
+        expression: >-
+          Object{spec: Object.spec{hostNetwork: true, dnsPolicy: "ClusterFirstWithHostNet"}}
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingAdmissionPolicyBinding
+metadata:
+  name: tailscale-connector-host-network
+spec:
+  policyName: tailscale-connector-host-network
