@@ -36,40 +36,22 @@ script renders all charts, validates all manifests and checks the sync order.
   Upgrade only one minor version at a time.
 - **Operating system:** unattended-upgrades installs the security updates. For kernel updates,
   restart the Pi at a time that is convenient.
-- **Tailscale operator:** After an update, do the [Tailscale check](#check-tailscale). The policy
-  in `platform/tailscale/connector-host-network.yaml` finds the subnet router pod by its labels.
-  If a new operator version changes the labels, the pod goes back to the pod network.
+- **Tailscale operator:** After an update, do the [Tailscale check](#check-tailscale).
 
 ### Check Tailscale
 
-The subnet router pod must use the network of the Pi. If not, remote devices often use a slow
-relay.
+Do this after an operator update, or when Tailscale is slow away from home:
 
-1. Make sure that the pod uses the host network. The command must show `true`:
+```sh
+TS=$(kubectl -n tailscale get pod -l tailscale.com/parent-resource=pi-lan -o name)
+kubectl -n tailscale get $TS -o jsonpath='{.spec.hostNetwork}{"\n"}'  # must be true
+kubectl -n tailscale exec $TS -c tailscale -- tailscale status         # direct = good, relay = slow
+```
 
-   ```sh
-   kubectl -n tailscale get pod -l tailscale.com/parent-resource=pi-lan -o jsonpath='{.items[*].spec.hostNetwork}'
-   ```
-
-2. Make sure that the connections are direct:
-
-   ```sh
-   TS=$(kubectl -n tailscale get pod -l tailscale.com/parent-resource=pi-lan -o name)
-   kubectl -n tailscale exec $TS -c tailscale -- tailscale status
-   ```
-
-   Each active device shows `direct <IP:port>` (good) or `relay "<city>"` (slow).
-
-3. For a device that shows `relay`, do a test from the subnet router. `pong … via <IP:port>` is
-   direct. `via DERP(…)` is the relay:
-
-   ```sh
-   kubectl -n tailscale exec $TS -c tailscale -- tailscale ping -c 5 <device>
-   ```
-
-A relay can be correct: some networks permit no direct connection (both sides behind a strict NAT).
-To see the NAT type of a device, run `tailscale netcheck` on it. `MappingVariesByDestIP: true` is a
-strict NAT.
+- **`hostNetwork` is not `true`:** The operator changed the pod labels. Correct the match in
+  `platform/tailscale/connector-host-network.yaml`, then delete the pod.
+- **A device stays on `relay "<city>"`:** Its network is behind a strict NAT. `tailscale netcheck`
+  on the device shows `MappingVariesByDestIP: true`.
 
 ## Alerts
 
@@ -503,4 +485,4 @@ availability.
 | Backups fail, and the rest-server pod is `Pending` | The SD card is not mounted (`findmnt /srv/backup`). Install the card again and run `sudo mount /srv/backup`. |
 | A large upload fails away from home, but works at home | The 100 MB request limit of Cloudflare. Use Tailscale. |
 | Tailscale is slow away from home | The connection uses a relay. Do the [Tailscale check](#check-tailscale). |
-| No Tailscale access after the subnet router restarts | Remove `platform/tailscale/connector-host-network.yaml` in Git and push. Argo CD deletes the policy. Then delete the `ts-pi-lan-*` pod, so that it starts again in the pod network. At home, `sudo tailscale set --accept-routes=false` on the laptop gives kubectl access through the LAN. |
+| No Tailscale access after the subnet router restarts | Remove `platform/tailscale/connector-host-network.yaml` in Git, push, and delete the `ts-pi-lan-*` pod. At home, `sudo tailscale set --accept-routes=false` on the laptop gives access through the LAN. |
