@@ -56,8 +56,16 @@ have HTTPS. Traefik redirects plain `http://` to HTTPS.
 cloudflared uses its own Traefik entry point (`tunnel`, Service `traefik-tunnel`), which is not on
 the LAN IP. Only this entry point trusts `X-Forwarded-*` and `CF-Connecting-IP`, so apps see the
 real internet client IP. On the LAN and Tailscale entry points, Traefik ignores these headers.
-Thus, no device can fake its client IP. Apps see all LAN and Tailscale clients as one address
-(`10.42.0.1`, or the Traefik pod for Vaultwarden).
+Thus, no device can fake its client IP. The Traefik Service uses `externalTrafficPolicy: Local`,
+thus LAN clients keep their own IP. Tailscale clients arrive as `10.42.0.1`, because the subnet
+router masquerades them. An app sees the client IP only if it trusts the Traefik pods
+(`10.42.0.0/16`) as a proxy: Gokapi, Jellyfin (`KnownProxies`), qBittorrent (reverse proxy
+support), Sonarr, Radarr and Prowlarr (`TrustedNetworks`), Uptime Kuma and Seerr (trust proxy).
+AdGuard counts failed logins by the proxy address, so its lock applies to all clients.
+
+**Never enable "no login for local addresses"** (Sonarr, Radarr, Prowlarr, qBittorrent subnet
+whitelist, and similar). All requests come through Traefik from a private address, also requests
+from the internet for most apps. Such an option would skip the login for everybody.
 
 The Tailscale subnet router (the operator's Connector pod) runs on the network of the Pi, not on
 the pod network. A MutatingAdmissionPolicy (`platform/tailscale/connector-host-network.yaml`) sets

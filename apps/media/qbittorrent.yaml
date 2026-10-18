@@ -48,6 +48,8 @@ data:
     WebUI\LocalHostAuth=false
     WebUI\CSRFProtection=false
     WebUI\HostHeaderValidation=false
+    WebUI\ReverseProxySupportEnabled=true
+    WebUI\TrustedReverseProxiesList=10.42.0.0/16
     WebUI\UseUPnP=false
 ---
 apiVersion: apps/v1
