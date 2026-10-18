@@ -1,5 +1,5 @@
-# Vaultwarden needs HTTPS on the LAN path. cloudflared also uses port 80 but sends
-# X-Forwarded-Proto: https, so tunnel traffic isn't redirected (no loop).
+# Vaultwarden needs HTTPS on the LAN path. Only on the web entry point: cloudflared uses the tunnel
+# entry point, so tunnel traffic isn't redirected (no loop).
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:

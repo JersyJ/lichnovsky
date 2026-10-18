@@ -51,8 +51,12 @@ of the client:
 
 Traefik has a Let's Encrypt wildcard certificate. The certificate uses DNS-01, thus no port must be
 open. HTTPS operates the same on all paths. The Bitwarden apps and the Vaultwarden web vault must
-have HTTPS. Traefik redirects plain `http://` to HTTPS. Tunnel traffic also arrives on port 80.
-cloudflared sends `X-Forwarded-Proto: https`, thus Traefik does not redirect it in a loop.
+have HTTPS. Traefik redirects plain `http://` to HTTPS.
+
+cloudflared uses its own Traefik entry point (`tunnel`, Service `traefik-tunnel`), which is not on
+the LAN IP. Only this entry point trusts `X-Forwarded-*` and `CF-Connecting-IP`, so apps see the
+real internet client IP. On the LAN and Tailscale entry points, Traefik ignores these headers.
+Thus, no device can fake its client IP.
 
 The [README](../README.md) shows which apps are public and which apps are behind Cloudflare Access.
 Private names have no public DNS record. They are only AdGuard rewrites.

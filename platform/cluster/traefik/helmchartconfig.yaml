@@ -7,19 +7,20 @@ spec:
   valuesContent: |-
     # web/websecure: LAN and Tailscale (via the LoadBalancer). tunnel: only cloudflared, through the
     # ClusterIP Service traefik-tunnel. Every Ingress listens on all three (asDefault).
+    # web/websecure trust no forwarded headers: all LAN and Tailscale traffic arrives from
+    # 10.42.0.1, so trusting it would let any device fake its client IP.
     ports:
       web:
         asDefault: true
-        # Transition: trusted until cloudflared uses the tunnel entry point.
-        forwardedHeaders:
-          trustedIPs: ["10.42.0.0/16"]
         # Redirect plain HTTP to HTTPS (see redirect-https.yaml).
         http:
-          middlewares: ["kube-system-redirect-https@kubernetescrd"]
+          middlewares:
+            - kube-system-strip-client-ip@kubernetescrd
+            - kube-system-redirect-https@kubernetescrd
       websecure:
         asDefault: true
-        forwardedHeaders:
-          trustedIPs: ["10.42.0.0/16"]
+        http:
+          middlewares: ["kube-system-strip-client-ip@kubernetescrd"]
       # Trusts X-Forwarded-* from cloudflared, so apps see the real client IP and https. Not on
       # the LoadBalancer, so LAN and Tailscale devices can't reach it.
       tunnel:
