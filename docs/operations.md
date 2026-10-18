@@ -45,11 +45,17 @@ Do this after an operator update, or when Tailscale is slow away from home:
 ```sh
 TS=$(kubectl -n tailscale get pod -l tailscale.com/parent-resource=pi-lan -o name)
 kubectl -n tailscale get $TS -o jsonpath='{.spec.hostNetwork}{"\n"}'  # must be true
+kubectl -n tailscale logs $TS -c tailscale | grep "netfilter running"  # must say iptables mode
 kubectl -n tailscale exec $TS -c tailscale -- tailscale status         # direct = good, relay = slow
 ```
 
 - **`hostNetwork` is not `true`:** The operator changed the pod labels. Correct the match in
   `platform/tailscale/connector-host-network.yaml`, then delete the pod.
+- **The log says `nftables mode`:** The start command in the policy did not apply (for example,
+  the image moved `iptables-nft` or `containerboot`). Tailscale then writes rules that stop the
+  network policies of k3s. Correct the command in the policy, then delete the pod.
+- **The pod does not start:** The start command fails in a new image. Remove the `JSONPatch`
+  mutation from the policy, push, and delete the pod.
 - **A device stays on `relay "<city>"`:** Its network is behind a strict NAT. `tailscale netcheck`
   on the device shows `MappingVariesByDestIP: true`.
 
@@ -485,4 +491,5 @@ availability.
 | Backups fail, and the rest-server pod is `Pending` | The SD card is not mounted (`findmnt /srv/backup`). Install the card again and run `sudo mount /srv/backup`. |
 | A large upload fails away from home, but works at home | The 100 MB request limit of Cloudflare. Use Tailscale. |
 | Tailscale is slow away from home | The connection uses a relay. Do the [Tailscale check](#check-tailscale). |
+| A NetworkPolicy has no effect | The k3s policy controller cannot read the firewall rules. On the Pi, `sudo journalctl -u k3s \| grep "Aborting sync"` shows it. Usually Tailscale runs in nftables mode: do the [Tailscale check](#check-tailscale). |
 | No Tailscale access after the subnet router restarts | Remove `platform/tailscale/connector-host-network.yaml` in Git, push, and delete the `ts-pi-lan-*` pod. At home, `sudo tailscale set --accept-routes=false` on the laptop gives access through the LAN. |

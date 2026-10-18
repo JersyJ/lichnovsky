@@ -67,6 +67,13 @@ devices could not connect directly and used a slow Tailscale relay (DERP). On th
 Pi, the NAT is "easy", also behind the CGNAT of the ISP, and connections are direct. After an
 operator update, do the Tailscale check in [operations.md](operations.md#check-tailscale).
 
+On the network of the Pi, Tailscale shares the firewall tables with k3s. k3s uses iptables-nft,
+and its network policy controller reads all rules with `iptables-save`. In the Tailscale image,
+`iptables` is the legacy variant, which the kernel of the Pi does not have. Thus, Tailscale wrote
+native nftables rules that `iptables-save` cannot read, and the network policies stopped updating.
+The same policy also changes the start command: it links `iptables` to `iptables-nft` and sets
+the iptables mode of Tailscale.
+
 The [README](../README.md) shows which apps are public and which apps are behind Cloudflare Access.
 Private names have no public DNS record. They are only AdGuard rewrites.
 
