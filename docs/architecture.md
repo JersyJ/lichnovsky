@@ -56,7 +56,16 @@ have HTTPS. Traefik redirects plain `http://` to HTTPS.
 cloudflared uses its own Traefik entry point (`tunnel`, Service `traefik-tunnel`), which is not on
 the LAN IP. Only this entry point trusts `X-Forwarded-*` and `CF-Connecting-IP`, so apps see the
 real internet client IP. On the LAN and Tailscale entry points, Traefik ignores these headers.
-Thus, no device can fake its client IP.
+Thus, no device can fake its client IP. Apps see all LAN and Tailscale clients as one address
+(`10.42.0.1`, or the Traefik pod for Vaultwarden).
+
+The Tailscale subnet router (the operator's Connector pod) runs on the network of the Pi, not on
+the pod network. A MutatingAdmissionPolicy (`platform/tailscale/connector-host-network.yaml`) sets
+`hostNetwork` when the pod is created, because the operator has no option for it. The pod network
+masquerades with a random source port for each destination (a "hard" NAT). Through it, remote
+devices could not connect directly and used a slow Tailscale relay (DERP). On the network of the
+Pi, the NAT is "easy", also behind the CGNAT of the ISP, and connections are direct. After an
+operator update, do the Tailscale check in [operations.md](operations.md#check-tailscale).
 
 The [README](../README.md) shows which apps are public and which apps are behind Cloudflare Access.
 Private names have no public DNS record. They are only AdGuard rewrites.
