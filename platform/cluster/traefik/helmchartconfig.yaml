@@ -7,8 +7,8 @@ spec:
   valuesContent: |-
     # web/websecure: LAN and Tailscale (via the LoadBalancer). tunnel: only cloudflared, through the
     # ClusterIP Service traefik-tunnel. Every Ingress listens on all three (asDefault).
-    # web/websecure trust no forwarded headers: all LAN and Tailscale traffic arrives from
-    # 10.42.0.1, so trusting it would let any device fake its client IP.
+    # web/websecure trust no forwarded headers, so no LAN or Tailscale device can fake its client
+    # IP. Traefik sets X-Forwarded-For and X-Real-Ip to the real sender itself.
     ports:
       web:
         asDefault: true
@@ -34,6 +34,11 @@ spec:
         forwardedHeaders:
           trustedIPs: ["10.42.0.0/16"]
     service:
+      # Local: kube-proxy doesn't masquerade LAN traffic, so Traefik sees the client IP instead of
+      # 10.42.0.1. Only works on nodes that run Traefik: with a second node, make Traefik a
+      # DaemonSet.
+      spec:
+        externalTrafficPolicy: Local
       additionalServices:
         tunnel:
           spec:

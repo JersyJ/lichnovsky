@@ -1,7 +1,8 @@
 # Only cloudflared may use the tunnel entry point: it trusts X-Forwarded-* and CF-Connecting-IP, so
 # any other pod could fake a client IP there. Also closes the API/ping port 8080 to pods.
-# Traffic from the Pi itself always passes (k3s network policy rule): kubelet probes, and LAN and
-# Tailscale requests, which arrive from 10.42.0.1 through ServiceLB.
+# Traffic from the Pi itself always passes (k3s network policy rule): kubelet probes, and
+# Tailscale requests (masqueraded to 10.42.0.1). LAN clients keep their own IP (Local policy), so
+# web and websecure are open to all sources.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -13,7 +14,7 @@ spec:
       app.kubernetes.io/name: traefik
   policyTypes: ["Ingress"]
   ingress:
-    # web, websecure: pods that call apps by their public names.
+    # web, websecure: LAN clients, and pods that call apps by their public names.
     - ports:
         - port: 8000
         - port: 8443
