@@ -5,18 +5,38 @@ metadata:
   namespace: kube-system
 spec:
   valuesContent: |-
-    # Trust X-Forwarded-* headers from pods (cloudflared). Apps then see the real
-    # client IP and scheme (https) instead of the cloudflared pod's IP.
+    # web/websecure: LAN and Tailscale (via the LoadBalancer). tunnel: only cloudflared, through the
+    # ClusterIP Service traefik-tunnel. Every Ingress listens on all three (asDefault).
     ports:
       web:
+        asDefault: true
+        # Transition: trusted until cloudflared uses the tunnel entry point.
         forwardedHeaders:
           trustedIPs: ["10.42.0.0/16"]
-        # Redirect plain HTTP to HTTPS (see redirect-https.yaml; tunnel traffic passes through).
+        # Redirect plain HTTP to HTTPS (see redirect-https.yaml).
         http:
           middlewares: ["kube-system-redirect-https@kubernetescrd"]
       websecure:
+        asDefault: true
         forwardedHeaders:
           trustedIPs: ["10.42.0.0/16"]
+      # Trusts X-Forwarded-* from cloudflared, so apps see the real client IP and https. Not on
+      # the LoadBalancer, so LAN and Tailscale devices can't reach it.
+      tunnel:
+        asDefault: true
+        port: 8001
+        exposedPort: 80
+        protocol: TCP
+        expose:
+          default: false
+          tunnel: true
+        forwardedHeaders:
+          trustedIPs: ["10.42.0.0/16"]
+    service:
+      additionalServices:
+        tunnel:
+          spec:
+            type: ClusterIP
     # Metrics Service for the ServiceMonitor in platform/monitoring.
     metrics:
       prometheus:
