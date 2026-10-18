@@ -3,6 +3,13 @@
 # a slow DERP relay. On the host network, the NAT is easy and connections become direct.
 # The operator has no hostNetwork option, so this changes the pod when it is created.
 # failurePolicy Ignore: if the policy fails, the pod still starts, in the pod network (relay).
+#
+# Firewall mode: on the host, Tailscale shares the iptables tables with k3s. In the image,
+# `iptables` is the legacy variant, which this kernel lacks, so Tailscale writes native nftables
+# rules that `iptables-save` can't read. The k3s network policy controller then stops syncing
+# ("Aborting sync. Failed to run iptables-save"). The start command links iptables to iptables-nft
+# (the same backend as k3s) and forces Tailscale's iptables mode. If the links fail, Tailscale
+# starts with its defaults.
 apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingAdmissionPolicy
 metadata:
@@ -23,11 +30,26 @@ spec:
       expression: >-
         object.metadata.?labels[?"tailscale.com/parent-resource-type"].orValue("") == "connector" &&
         object.metadata.?labels[?"tailscale.com/parent-resource"].orValue("") == "pi-lan"
+  variables:
+    - name: start
+      expression: >-
+        "mkdir -p /usr/local/sbin" +
+        " && ln -sf /usr/sbin/iptables-nft /usr/local/sbin/iptables" +
+        " && ln -sf /usr/sbin/ip6tables-nft /usr/local/sbin/ip6tables" +
+        " && export TS_DEBUG_FIREWALL_MODE=iptables; exec containerboot"
+    - name: tailscale
+      expression: object.spec.containers.map(c, c.name).indexOf("tailscale")
   mutations:
     - patchType: ApplyConfiguration
       applyConfiguration:
         expression: >-
           Object{spec: Object.spec{hostNetwork: true, dnsPolicy: "ClusterFirstWithHostNet"}}
+    # JSONPatch, because ApplyConfiguration can't change the atomic `command` list.
+    - patchType: JSONPatch
+      jsonPatch:
+        expression: >-
+          [JSONPatch{op: "add", path: "/spec/containers/" + string(variables.tailscale) + "/command",
+          value: ["/bin/sh", "-c", variables.start]}]
 ---
 apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingAdmissionPolicyBinding
