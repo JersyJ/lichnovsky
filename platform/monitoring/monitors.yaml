@@ -108,9 +108,11 @@ spec:
         - alert: BackupMissing
           # Summed per namespace so a k8up restart (new series) doesn't hide or fake a backup. The
           # `offset 36h` part skips namespaces (and fresh Prometheus data) younger than the window.
+          # Namespaces without PVCs (photos before Immich) only ever report "nothing to backup".
           expr: >-
             sum by (namespace) (increase(k8up_jobs_successful_counter{jobType="backup"}[36h])) < 0.5
             and on (namespace) count by (namespace) (k8up_jobs_successful_counter{jobType="backup"} offset 36h)
+            and on (namespace) count by (namespace) (kube_persistentvolumeclaim_info)
           for: 30m
           labels: { severity: warning }
           annotations:
