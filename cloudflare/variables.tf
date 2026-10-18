@@ -25,9 +25,9 @@ variable "access_emails" {
 }
 
 variable "origin_service" {
-  description = "Where cloudflared sends every public request: Traefik inside the cluster."
+  description = "Where cloudflared sends every public request: the tunnel entry point of Traefik."
   type        = string
-  default     = "http://traefik.kube-system.svc.cluster.local:80"
+  default     = "http://traefik-tunnel.kube-system.svc.cluster.local:80"
 }
 
 variable "discord_webhook_url" {
