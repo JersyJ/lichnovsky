@@ -1,4 +1,4 @@
-# Vaultwarden and Gokapi take the client IP from CF-Connecting-IP. Only Cloudflare may set it, so
+# Gokapi takes the client IP from CF-Connecting-IP when it is set. Only Cloudflare may set it, so
 # the LAN/Tailscale entry points (web, websecure) remove it. The tunnel entry point keeps it.
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
