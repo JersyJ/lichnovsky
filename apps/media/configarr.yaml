@@ -24,8 +24,34 @@ data:
             required: true
             fields:
               value: "^(MeGusta|PSA)$"
-      # Sonarr only. A single episode in x265 over 0.7 GB (about 2 Mbit/s at 44 min) is not smaller
-      # than H.264, so "1080p small" rejects it. The size is the whole release, thus not for packs.
+      # Sonarr only: a large x265 episode is hardly smaller than H.264. 0.8-1.2 GB ranks below the
+      # mid-size x265 and good H.264 releases, over 1.2 GB is rejected. Size is of the whole
+      # release, thus only for single episodes (not packs).
+      - trash_id: lichnovsky-x265-large
+        trash_scores:
+          default: 0
+        name: x265 large
+        includeCustomFormatWhenRenaming: false
+        specifications:
+          - name: x265
+            implementation: ReleaseTitleSpecification
+            negate: false
+            required: true
+            fields:
+              value: '[xh][ ._-]?265|\bHEVC(\b|\d)'
+          - name: 0.8 to 1.2 GB
+            implementation: SizeSpecification
+            negate: false
+            required: true
+            fields:
+              min: 0.8
+              max: 1.2
+          - name: Single episode
+            implementation: ReleaseTypeSpecification
+            negate: false
+            required: true
+            fields:
+              value: 1
       - trash_id: lichnovsky-x265-too-large
         trash_scores:
           default: 0
@@ -38,12 +64,12 @@ data:
             required: true
             fields:
               value: '[xh][ ._-]?265|\bHEVC(\b|\d)'
-          - name: Over 0.7 GB
+          - name: Over 1.2 GB
             implementation: SizeSpecification
             negate: false
             required: true
             fields:
-              min: 0.7
+              min: 1.2
               max: 1000
           - name: Single episode
             implementation: ReleaseTypeSpecification
@@ -102,6 +128,11 @@ data:
             assign_scores_to:
               - name: 1080p small
                 score: 9500
+          - trash_ids:
+              - lichnovsky-x265-large
+            assign_scores_to:
+              - name: 1080p small
+                score: -1000
           - trash_ids:
               - lichnovsky-x265-too-large
             assign_scores_to:
