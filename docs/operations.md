@@ -284,9 +284,9 @@ acceptable release.
   ELiTE (about 400 MB for 44 minutes). They play directly also on a slow line, and the TV and
   modern devices decode HEVC. The order:
   1. mid-size x265
-  2. MeGusta and PSA (smaller, a softer picture)
-  3. H.264 (the TRaSH quality tiers), when no x265 release exists
-  4. large x265 (episode 0.8–1.2 GB, movie 4–6 GB)
+  2. large x265 (episode 0.8–1.2 GB, movie 4–6 GB)
+  3. MeGusta and PSA (smaller, a softer picture)
+  4. H.264 (the TRaSH quality tiers), when no x265 release exists
   5. rejected: x265 over 1.2 GB (episode) or 6 GB (movie)
 
   A browser that cannot play HEVC needs a transcode, which the Pi does in software. The scores
