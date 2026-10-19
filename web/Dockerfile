@@ -17,7 +17,7 @@ RUN npm run build
 
 # The slim nginx: core modules only (no njs, perl, image filters or curl), ~6 MB compressed.
 # Runs as the unprivileged nginx user (101), listens on 8080, keeps its pid and temp files in /tmp.
-FROM nginxinc/nginx-unprivileged:1.31.6-alpine-slim AS runtime
+FROM nginxinc/nginx-unprivileged:1.31.7-alpine-slim AS runtime
 
 COPY --link nginx.conf /etc/nginx/conf.d/default.conf
 
