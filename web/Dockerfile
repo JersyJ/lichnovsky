@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # Build on the CI machine's own architecture (fast); the output is plain static files.
-FROM --platform=$BUILDPLATFORM node:24.21.0-alpine AS build
+FROM --platform=$BUILDPLATFORM node:24.22.0-alpine AS build
 
 WORKDIR /src
 
