@@ -9,8 +9,10 @@ metadata:
   namespace: tv
 data:
   config.yml: |
-    # Test of "1080p small" (prefers x265): MeGusta and PSA are in TRaSH's LQ list (-10000). This
-    # format gives them +9500 back in "1080p small" only, so they rank below the other x265 groups.
+    # Test of "1080p small" (prefers x265): MeGusta and PSA are in TRaSH's LQ list (-10000). In
+    # "1080p small" only, the group format gives the +10000 back and the name format takes 500, so
+    # they rank below the other x265 groups. The name format also catches titles where the indexer
+    # removed the dots and Sonarr/Radarr can't read the group.
     customFormatDefinitions:
       - trash_id: lichnovsky-small-x265-groups
         trash_scores:
@@ -24,6 +26,18 @@ data:
             required: true
             fields:
               value: "^(MeGusta|PSA)$"
+      - trash_id: lichnovsky-small-x265-names
+        trash_scores:
+          default: 0
+        name: Small x265 groups (name)
+        includeCustomFormatWhenRenaming: false
+        specifications:
+          - name: MeGusta or PSA in the name
+            implementation: ReleaseTitleSpecification
+            negate: false
+            required: true
+            fields:
+              value: '\b(MeGusta|PSA)\b'
       # Sonarr only: a large x265 episode is hardly smaller than H.264. 0.8-1.2 GB ranks below the
       # mid-size x265 and good H.264 releases, over 1.2 GB is rejected. Size is of the whole
       # release, thus only for single episodes (not packs).
@@ -127,7 +141,12 @@ data:
               - lichnovsky-small-x265-groups
             assign_scores_to:
               - name: 1080p small
-                score: 9500
+                score: 10000
+          - trash_ids:
+              - lichnovsky-small-x265-names
+            assign_scores_to:
+              - name: 1080p small
+                score: -500
           - trash_ids:
               - lichnovsky-x265-large
             assign_scores_to:
@@ -220,7 +239,12 @@ data:
               - lichnovsky-small-x265-groups
             assign_scores_to:
               - name: 1080p small
-                score: 9500
+                score: 10000
+          - trash_ids:
+              - lichnovsky-small-x265-names
+            assign_scores_to:
+              - name: 1080p small
+                score: -500
         media_naming:
           folder: jellyfin-tmdb
           movie:
