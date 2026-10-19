@@ -278,21 +278,24 @@ person icon). It shows all releases, and the reason for each rejected release. P
 icon of a release. Use this for a special version, or when the automatic search finds no
 acceptable release.
 
-**Profiles:** The two apps have the same three profiles, from TRaSH-Guides through Configarr:
+**Profiles:** The two apps have the same two profiles, from TRaSH-Guides through Configarr:
 
-- **1080p** (default): movies from Blu-ray or WEB, series from WEB. Mostly H.264, the best picture.
-- **1080p small:** for a viewer with a slow line (about 1–2 Mbit/s instead of about 5). It takes a
-  mid-size x265 (HEVC) release first, for example ELiTE (about 400 MB for 44 minutes), then
-  MeGusta and PSA (smaller, a softer picture), then the normal 1080p release. It rejects large
-  x265 files: an episode over 1.2 GB, a movie over 6 GB. HEVC plays on the TV and on modern
-  devices; a browser can need a transcode, which the Pi does in software.
+- **1080p** (default): prefers mid-size x265 (HEVC) releases of about 1–2 Mbit/s, for example
+  ELiTE (about 400 MB for 44 minutes). They play directly also on a slow line, and the TV and
+  modern devices decode HEVC. The order:
+  1. mid-size x265
+  2. MeGusta and PSA (smaller, a softer picture)
+  3. H.264 (the TRaSH quality tiers), when no x265 release exists
+  4. large x265 (episode 0.8–1.2 GB, movie 4–6 GB)
+  5. rejected: x265 over 1.2 GB (episode) or 6 GB (movie)
+
+  A browser that cannot play HEVC needs a transcode, which the Pi does in software. The scores
+  and the size limits are in `apps/media/configarr.yaml` (`custom_formats`).
 - **4K, else 1080p:** gets 2160p if a release exists, else 1080p. It upgrades to 2160p when a
   release becomes available.
 
-Sonarr and Radarr keep one file for each episode or movie. Thus, a title has one profile: for a
-title that both you and a viewer with a slow line watch, select which is more important. The
-minimum sizes for 1080p (Sonarr 2.5 MB per minute, Radarr 8 MB per minute, below TRaSH) apply to
-all profiles, so that the small x265 releases pass.
+The minimum sizes for 1080p (Sonarr 2.5 MB per minute, Radarr 8 MB per minute) are below the TRaSH
+values, so that the small x265 releases pass.
 
 To get a title in 4K, select **4K, else 1080p**. In Seerr, you find it in the request dialog under
 *Advanced* (only for admins and users with advanced requests). Later, you can change it in Radarr or
