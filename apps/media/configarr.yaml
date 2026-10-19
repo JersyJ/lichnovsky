@@ -9,7 +9,9 @@ metadata:
   namespace: tv
 data:
   config.yml: |
-    # Test of "1080p small" (prefers x265): MeGusta and PSA are in TRaSH's LQ list (-10000). In
+    # "1080p small" (Sonarr and Radarr): mid-size x265 first, for clients with a slow line. Chosen
+    # per title; "1080p" stays the default (H.264 looks better on the TV).
+    # MeGusta and PSA are in TRaSH's LQ list (-10000). In
     # "1080p small" only, the group format gives the +10000 back and the name format takes 500, so
     # they rank below the other x265 groups. The name format also catches titles where the indexer
     # removed the dots and Sonarr/Radarr can't read the group.
@@ -66,6 +68,45 @@ data:
             required: true
             fields:
               value: 1
+      # Radarr: the same for movies (about 2 hours): 4-6 GB ranks lower, over 6 GB is rejected.
+      - trash_id: lichnovsky-x265-large-movie
+        trash_scores:
+          default: 0
+        name: x265 large (movie)
+        includeCustomFormatWhenRenaming: false
+        specifications:
+          - name: x265
+            implementation: ReleaseTitleSpecification
+            negate: false
+            required: true
+            fields:
+              value: '[xh][ ._-]?265|\bHEVC(\b|\d)'
+          - name: 4 to 6 GB
+            implementation: SizeSpecification
+            negate: false
+            required: true
+            fields:
+              min: 4
+              max: 6
+      - trash_id: lichnovsky-x265-too-large-movie
+        trash_scores:
+          default: 0
+        name: x265 too large (movie)
+        includeCustomFormatWhenRenaming: false
+        specifications:
+          - name: x265
+            implementation: ReleaseTitleSpecification
+            negate: false
+            required: true
+            fields:
+              value: '[xh][ ._-]?265|\bHEVC(\b|\d)'
+          - name: Over 6 GB
+            implementation: SizeSpecification
+            negate: false
+            required: true
+            fields:
+              min: 6
+              max: 1000
       - trash_id: lichnovsky-x265-too-large
         trash_scores:
           default: 0
@@ -106,7 +147,7 @@ data:
             - { quality: WEBDL-1080p, min: 2.5, preferred: 995, max: 1000 }
         delete_unmanaged_quality_profiles:   # the built-in Any, SD, HD-720p, Ultra-HD, ...
           enabled: true
-          ignore: ["1080p small"]   # the clone, until it's clear Configarr counts it as managed
+          ignore: ["1080p small"]   # the clone (cloneQualityProfiles below)
         include:
           - template: 72dae194fc92bf828f32cde7744e51a1   # TRaSH WEB-1080p (the default)
             source: TRASH
@@ -118,7 +159,7 @@ data:
             to: 1080p
           - from: WEB-2160p (Combined)
             to: 4K, else 1080p
-        # Test profile: the same as 1080p, but x265 first (+2500, TRaSH: -10000). Best H.264 is 1800.
+        # "1080p small": the same as 1080p, but x265 first (+2500, TRaSH: -10000). Best H.264 is 1800.
         cloneQualityProfiles:
           - from: 1080p
             to: 1080p small
@@ -188,9 +229,16 @@ data:
         api_key: !env RADARR_API_KEY
         quality_definition:
           type: movie
+          # Minimum 8 MB per minute (about 1 GB for 2 hours), so mid-size x265 encodes pass. TRaSH:
+          # 12.5 (WEB), 33.8 (HDTV), 50.8 (Bluray). Applies to every profile.
+          qualities:
+            - { quality: HDTV-1080p, min: 8, preferred: 1999, max: 2000 }
+            - { quality: WEBDL-1080p, min: 8, preferred: 1999, max: 2000 }
+            - { quality: WEBRip-1080p, min: 8, preferred: 1999, max: 2000 }
+            - { quality: Bluray-1080p, min: 8, preferred: 1999, max: 2000 }
         delete_unmanaged_quality_profiles:   # the built-in Any, SD, HD-720p, Ultra-HD, ...
           enabled: true
-          ignore: ["1080p small"]   # the clone, until it's clear Configarr counts it as managed
+          ignore: ["1080p small"]   # the clone (cloneQualityProfiles below)
         include:
           - template: d1d67249d3890e49bc12e275d989a7e9   # TRaSH HD Bluray + WEB (the default)
             source: TRASH
@@ -220,12 +268,20 @@ data:
               - name: Bluray-1080p
               - name: WEB 1080p
                 qualities: [WEBDL-1080p, WEBRip-1080p]
+          # One group, so the score decides: otherwise any H.264 Blu-ray beats every x265 WEB file.
+          - name: 1080p small
+            upgrade:
+              allowed: true
+              until_quality: Any 1080p
+            qualities:
+              - name: Any 1080p
+                qualities: [Bluray-1080p, WEBDL-1080p, WEBRip-1080p, HDTV-1080p]
         renameQualityProfiles:
           - from: HD Bluray + WEB
             to: 1080p
           - from: UHD Bluray + WEB
             to: 4K, else 1080p
-        # Test profile: the same as 1080p, but x265 first (+2500, TRaSH: -10000). Best H.264 is 1800.
+        # "1080p small": the same as 1080p, but x265 first (+2500, TRaSH: -10000). Best H.264 is 1800.
         cloneQualityProfiles:
           - from: 1080p
             to: 1080p small
@@ -245,6 +301,16 @@ data:
             assign_scores_to:
               - name: 1080p small
                 score: -500
+          - trash_ids:
+              - lichnovsky-x265-large-movie
+            assign_scores_to:
+              - name: 1080p small
+                score: -1000
+          - trash_ids:
+              - lichnovsky-x265-too-large-movie
+            assign_scores_to:
+              - name: 1080p small
+                score: -3000
         media_naming:
           folder: jellyfin-tmdb
           movie:
