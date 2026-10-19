@@ -473,7 +473,7 @@ Viewer ─── link ─────────┘  the video comes directly f
    ```bash
    ssh -t rpi 'sudo cat /var/lib/rancher/k3s/server/node-token'
    # on rpi-02
-   curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="v1.36.5+k3s1" \
+   curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="v1.37.1+k3s1" \
      K3S_URL=https://192.168.50.244:6443 K3S_TOKEN=<token> sh -s - agent --node-name rpi-02
    ```
 3. Workloads with a `local-path` volume stay on rpi-01, because each volume is on one node. AdGuard
