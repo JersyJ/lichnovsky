@@ -9,12 +9,12 @@ metadata:
   namespace: tv
 data:
   config.yml: |
-    # "1080p small" (Sonarr and Radarr): mid-size x265 first, for clients with a slow line. Chosen
-    # per title; "1080p" stays the default (H.264 looks better on the TV).
-    # MeGusta and PSA are in TRaSH's LQ list (-10000). In
-    # "1080p small" only, the group format gives the +10000 back and the name format takes 500, so
-    # they rank below the other x265 groups. The name format also catches titles where the indexer
-    # removed the dots and Sonarr/Radarr can't read the group.
+    # "1080p" prefers mid-size x265 (HEVC): about 1-2 Mbit/s, so it plays directly also on a slow
+    # line. Order: mid-size x265 (2500), MeGusta/PSA (2000), H.264 (TRaSH tiers, up to 1800), large
+    # x265 (-1000), too large x265 (rejected). The scores are in custom_formats of each app.
+    # MeGusta and PSA are in TRaSH's LQ list (-10000): the group format gives the +10000 back and
+    # the name format takes 500. The name format also catches titles where the indexer removed the
+    # dots and Sonarr/Radarr can't read the group.
     customFormatDefinitions:
       - trash_id: lichnovsky-small-x265-groups
         trash_scores:
@@ -147,56 +147,53 @@ data:
             - { quality: WEBDL-1080p, min: 2.5, preferred: 995, max: 1000 }
         delete_unmanaged_quality_profiles:   # the built-in Any, SD, HD-720p, Ultra-HD, ...
           enabled: true
-          ignore: ["1080p small"]   # the clone (cloneQualityProfiles below)
         include:
           - template: 72dae194fc92bf828f32cde7744e51a1   # TRaSH WEB-1080p (the default)
             source: TRASH
           - template: c4cadd6b35b95f62c3d47a408e53e2f7   # TRaSH WEB-2160p (Combined): 2160p, else 1080p
             source: TRASH
-        # Same two names as in Radarr. 720p, HDTV, remuxes etc. only by hand (Interactive Search).
+        # Same two names as in Radarr. 720p, remuxes etc. only by hand (Interactive Search).
         renameQualityProfiles:
           - from: WEB-1080p
             to: 1080p
           - from: WEB-2160p (Combined)
             to: 4K, else 1080p
-        # "1080p small": the same as 1080p, but x265 first (+2500, TRaSH: -10000). Best H.264 is 1800.
-        cloneQualityProfiles:
-          - from: 1080p
-            to: 1080p small
-        # HDTV-1080p in the same group as WEB: x265 encodes without "WEB" in the name parse as HDTV.
+        # 1080p (TRaSH name WEB-1080p): HDTV-1080p in the same group as WEB, because x265 encodes
+        # without "WEB" in the name parse as HDTV. The score then decides.
         quality_profiles:
-          - name: 1080p small
+          - name: WEB-1080p
             upgrade:
               allowed: true
               until_quality: WEB 1080p
             qualities:
               - name: WEB 1080p
                 qualities: [WEBDL-1080p, WEBRip-1080p, HDTV-1080p]
+        # HEVC scores for 1080p. x265 (HD): TRaSH -10000.
         custom_formats:
           - trash_ids:
               - 47435ece6b99a0b477caf360e79ba0bb # x265 (HD)
             assign_scores_to:
-              - name: 1080p small
+              - name: WEB-1080p
                 score: 2500
           - trash_ids:
               - lichnovsky-small-x265-groups
             assign_scores_to:
-              - name: 1080p small
+              - name: WEB-1080p
                 score: 10000
           - trash_ids:
               - lichnovsky-small-x265-names
             assign_scores_to:
-              - name: 1080p small
+              - name: WEB-1080p
                 score: -500
           - trash_ids:
               - lichnovsky-x265-large
             assign_scores_to:
-              - name: 1080p small
+              - name: WEB-1080p
                 score: -1000
           - trash_ids:
               - lichnovsky-x265-too-large
             assign_scores_to:
-              - name: 1080p small
+              - name: WEB-1080p
                 score: -3000
         media_naming:
           series: jellyfin-tvdb
@@ -238,7 +235,6 @@ data:
             - { quality: Bluray-1080p, min: 8, preferred: 1999, max: 2000 }
         delete_unmanaged_quality_profiles:   # the built-in Any, SD, HD-720p, Ultra-HD, ...
           enabled: true
-          ignore: ["1080p small"]   # the clone (cloneQualityProfiles below)
         include:
           - template: d1d67249d3890e49bc12e275d989a7e9   # TRaSH HD Bluray + WEB (the default)
             source: TRASH
@@ -249,14 +245,14 @@ data:
         # and upgrades to 2160p later. The Pi can't transcode 4K, so it plays only on devices that
         # decode it themselves (TV apps; not most browsers). 720p, remuxes etc. only by hand.
         quality_profiles:
+          # One 1080p group, so the score decides: otherwise any H.264 Blu-ray beats every x265 file.
           - name: HD Bluray + WEB
             upgrade:
               allowed: true
-              until_quality: Bluray-1080p
+              until_quality: Any 1080p
             qualities:
-              - name: Bluray-1080p
-              - name: WEB 1080p
-                qualities: [WEBDL-1080p, WEBRip-1080p]
+              - name: Any 1080p
+                qualities: [Bluray-1080p, WEBDL-1080p, WEBRip-1080p, HDTV-1080p]
           - name: UHD Bluray + WEB
             upgrade:
               allowed: true
@@ -268,48 +264,37 @@ data:
               - name: Bluray-1080p
               - name: WEB 1080p
                 qualities: [WEBDL-1080p, WEBRip-1080p]
-          # One group, so the score decides: otherwise any H.264 Blu-ray beats every x265 WEB file.
-          - name: 1080p small
-            upgrade:
-              allowed: true
-              until_quality: Any 1080p
-            qualities:
-              - name: Any 1080p
-                qualities: [Bluray-1080p, WEBDL-1080p, WEBRip-1080p, HDTV-1080p]
         renameQualityProfiles:
           - from: HD Bluray + WEB
             to: 1080p
           - from: UHD Bluray + WEB
             to: 4K, else 1080p
-        # "1080p small": the same as 1080p, but x265 first (+2500, TRaSH: -10000). Best H.264 is 1800.
-        cloneQualityProfiles:
-          - from: 1080p
-            to: 1080p small
+        # HEVC scores for 1080p (TRaSH name HD Bluray + WEB). x265 (HD): TRaSH -10000.
         custom_formats:
           - trash_ids:
               - dc98083864ea246d05a42df0d05f81cc # x265 (HD)
             assign_scores_to:
-              - name: 1080p small
+              - name: HD Bluray + WEB
                 score: 2500
           - trash_ids:
               - lichnovsky-small-x265-groups
             assign_scores_to:
-              - name: 1080p small
+              - name: HD Bluray + WEB
                 score: 10000
           - trash_ids:
               - lichnovsky-small-x265-names
             assign_scores_to:
-              - name: 1080p small
+              - name: HD Bluray + WEB
                 score: -500
           - trash_ids:
               - lichnovsky-x265-large-movie
             assign_scores_to:
-              - name: 1080p small
+              - name: HD Bluray + WEB
                 score: -1000
           - trash_ids:
               - lichnovsky-x265-too-large-movie
             assign_scores_to:
-              - name: 1080p small
+              - name: HD Bluray + WEB
                 score: -3000
         media_naming:
           folder: jellyfin-tmdb
