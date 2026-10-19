@@ -31,6 +31,12 @@ data:
         api_key: !env SONARR_API_KEY
         quality_definition:
           type: series
+          # Minimum 2.5 MB per minute (about 110 MB for a 44 min episode), so small x265 encodes
+          # pass. TRaSH: 15. Applies to every profile.
+          qualities:
+            - { quality: HDTV-1080p, min: 2.5, preferred: 995, max: 1000 }
+            - { quality: WEBRip-1080p, min: 2.5, preferred: 995, max: 1000 }
+            - { quality: WEBDL-1080p, min: 2.5, preferred: 995, max: 1000 }
         delete_unmanaged_quality_profiles:   # the built-in Any, SD, HD-720p, Ultra-HD, ...
           enabled: true
           ignore: ["1080p small"]   # the clone, until it's clear Configarr counts it as managed
@@ -49,6 +55,15 @@ data:
         cloneQualityProfiles:
           - from: 1080p
             to: 1080p small
+        # HDTV-1080p in the same group as WEB: x265 encodes without "WEB" in the name parse as HDTV.
+        quality_profiles:
+          - name: 1080p small
+            upgrade:
+              allowed: true
+              until_quality: WEB 1080p
+            qualities:
+              - name: WEB 1080p
+                qualities: [WEBDL-1080p, WEBRip-1080p, HDTV-1080p]
         custom_formats:
           - trash_ids:
               - 47435ece6b99a0b477caf360e79ba0bb # x265 (HD)
