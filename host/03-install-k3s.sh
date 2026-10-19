@@ -6,7 +6,7 @@ set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
 step() { printf '\n== %s\n' "$*"; }
 
-K3S_VERSION=v1.36.4+k3s1
+K3S_VERSION=v1.36.5+k3s1
 NODE=$(sed -n 's/^node-name: *//p' "$HERE/k3s-config.yaml")
 
 step "1/4 preflight"
