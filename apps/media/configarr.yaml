@@ -145,6 +145,10 @@ data:
             - { quality: HDTV-1080p, min: 2.5, preferred: 995, max: 1000 }
             - { quality: WEBRip-1080p, min: 2.5, preferred: 995, max: 1000 }
             - { quality: WEBDL-1080p, min: 2.5, preferred: 995, max: 1000 }
+        # Do not prefer REPACK/PROPER by itself: otherwise a v2 file blocks every better-scored v1
+        # release. TRaSH's Repack/Proper format adds a few points instead.
+        media_management:
+          downloadPropersAndRepacks: doNotPrefer
         delete_unmanaged_quality_profiles:   # the built-in Any, SD, HD-720p, Ultra-HD, ...
           enabled: true
         include:
@@ -218,7 +222,9 @@ data:
                 username: admin
                 password: !env QBITTORRENT_PASSWORD
                 tv_category: tv
-                tv_imported_category: tv-imported
+                # No post-import category: with one, Sonarr never removes a finished torrent, and a
+                # replaced file keeps its space through the torrent's hardlink.
+                tv_imported_category: ""
 
     radarr:
       main:
@@ -233,6 +239,10 @@ data:
             - { quality: WEBDL-1080p, min: 8, preferred: 1999, max: 2000 }
             - { quality: WEBRip-1080p, min: 8, preferred: 1999, max: 2000 }
             - { quality: Bluray-1080p, min: 8, preferred: 1999, max: 2000 }
+        # Do not prefer REPACK/PROPER by itself: otherwise a v2 file blocks every better-scored v1
+        # release. TRaSH's Repack/Proper format adds a few points instead.
+        media_management:
+          downloadPropersAndRepacks: doNotPrefer
         delete_unmanaged_quality_profiles:   # the built-in Any, SD, HD-720p, Ultra-HD, ...
           enabled: true
         include:
@@ -316,7 +326,7 @@ data:
                 username: admin
                 password: !env QBITTORRENT_PASSWORD
                 movie_category: movies
-                movie_imported_category: movies-imported
+                movie_imported_category: ""   # see Sonarr
 
     # Indexers themselves are added by hand in Prowlarr's UI (docs/setup.md); Prowlarr then pushes
     # them to Sonarr and Radarr. Tag an indexer "flaresolverr" if it sits behind a Cloudflare check.
