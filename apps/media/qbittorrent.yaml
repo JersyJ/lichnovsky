@@ -83,7 +83,7 @@ spec:
         # Every pod in the cluster can reach the Web UI, so it needs a password from the start
         # (the image's default skips it for private subnets). The hash comes from scripts/seal.sh.
         - name: seed-config
-          image: ghcr.io/home-operations/qbittorrent:5.2.4
+          image: ghcr.io/home-operations/qbittorrent:5.3.0
           command: ["/bin/bash", "-c"]
           args:
             - |
@@ -106,7 +106,7 @@ spec:
               drop: ["ALL"]
       containers:
         - name: qbittorrent
-          image: ghcr.io/home-operations/qbittorrent:5.2.4
+          image: ghcr.io/home-operations/qbittorrent:5.3.0
           env:
             - { name: TZ, value: "Europe/Prague" }
           ports:
