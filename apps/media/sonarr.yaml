@@ -42,7 +42,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: sonarr
-          image: ghcr.io/home-operations/sonarr:4.0.20.3012
+          image: ghcr.io/home-operations/sonarr:5.0.0.2785
           env:
             - { name: TZ, value: "Europe/Prague" }
             - name: SONARR__AUTH__APIKEY
