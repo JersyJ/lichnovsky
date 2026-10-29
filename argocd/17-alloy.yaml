@@ -13,10 +13,26 @@ spec:
     targetRevision: 1.14.3
     helm:
       valuesObject:
+        # StatefulSet with a small volume: Alloy keeps the read positions of the logs in its
+        # storage path. In the container filesystem they were lost on every restart, and Alloy
+        # sent all old logs again (Loki rejects them as too old).
         controller:
-          type: deployment      # one replica is enough; it reads logs via the API
+          type: statefulset     # one replica is enough; it reads logs via the API
           replicas: 1
+          volumeClaimTemplates:
+            - metadata:
+                name: storage
+              spec:
+                accessModes: ["ReadWriteOnce"]
+                storageClassName: local-path
+                resources:
+                  requests:
+                    storage: 128Mi
         alloy:
+          storagePath: /var/lib/alloy/data
+          mounts:
+            extra:
+              - { name: storage, mountPath: /var/lib/alloy }
           resources:
             requests: { cpu: 25m, memory: 96Mi }
             limits: { memory: 256Mi }
