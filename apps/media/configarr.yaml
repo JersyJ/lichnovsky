@@ -410,10 +410,14 @@ data:
                 prowlarrUrl: http://prowlarr
                 baseUrl: http://sonarr
                 apiKey: !env SONARR_API_KEY
+            # Movies (2000-2090) and Other (8000): LimeTorrents puts every result without a search
+            # term into Other, and Radarr tests an indexer with such a search. Without 8000 Radarr
+            # refused LimeTorrents. Radarr takes only results whose title matches the movie.
             - name: Radarr
               type: Radarr
               sync_level: fullSync
               fields:
+                syncCategories: [2000, 2010, 2020, 2030, 2040, 2045, 2050, 2060, 2070, 2080, 2090, 8000]
                 prowlarrUrl: http://prowlarr
                 baseUrl: http://radarr
                 apiKey: !env RADARR_API_KEY
