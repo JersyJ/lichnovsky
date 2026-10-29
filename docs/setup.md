@@ -441,6 +441,9 @@ these short names in the forms below.
      each subtitle that is not an exact match for the file.
    - *Settings → Subtitles → Translating:* Select *Lingarr* with the address `http://lingarr:9876`
      and no token. Then *Translate* on a subtitle makes Czech from English with DeepL.
+   - **Lingarr:** Run `scripts/lingarr-setup.sh` one time. It finishes Lingarr's onboarding
+     without a login and stores the DeepL key from the `lingarr` secret. It ends with a test
+     translation.
    - *Settings → Library → Sonarr:* Select *Enabled*. Enter address `sonarr`, port `80` and the API
      key from Sonarr (*Settings → General*). On the *Radarr* tab, enter `radarr`, `80` and the key
      from Radarr. Do not add path mappings, because the paths are the same in all apps.

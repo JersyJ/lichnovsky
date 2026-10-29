@@ -1,8 +1,10 @@
 # Translation for Bazarr: Bazarr sends an English subtitle, Lingarr translates it with DeepL (Free:
 # 500,000 characters a month, about 20,000 per episode or movie). Bazarr translates only when you
 # select Translate on a subtitle; nothing runs by itself.
-# No Ingress and no login: only Bazarr may connect (NetworkPolicy below). The settings are in the
-# env, thus the config volume holds only Lingarr's job database and needs no backup.
+# No Ingress and no login: only Bazarr may connect (NetworkPolicy below). After a new config volume,
+# run scripts/lingarr-setup.sh one time: it finishes the onboarding and stores the DeepL key from
+# the Secret `lingarr` (Lingarr 1.4.1 ignores DEEPL_API_KEY in the env). The other settings are in
+# the env, and the script can recreate the key, thus the volume needs no backup.
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -53,9 +55,6 @@ spec:
             - { name: SERVICE_TYPE, value: '["deepl"]' }
             - { name: SOURCE_LANGUAGES, value: '[{"name":"English","code":"en"}]' }
             - { name: TARGET_LANGUAGES, value: '[{"name":"Czech","code":"cs"}]' }
-            - name: DEEPL_API_KEY
-              valueFrom:
-                secretKeyRef: { name: lingarr, key: DEEPL_API_KEY }
           ports:
             - name: http
               containerPort: 9876
