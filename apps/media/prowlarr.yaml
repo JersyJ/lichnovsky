@@ -44,6 +44,9 @@ spec:
           image: ghcr.io/home-operations/prowlarr:2.7.0.5723
           env:
             - { name: TZ, value: "Europe/Prague" }
+            # Overrides config.xml: debug logs fill the disk of the Pi; no usage data to the developers.
+            - { name: PROWLARR__LOG__LEVEL, value: info }
+            - { name: PROWLARR__LOG__ANALYTICSENABLED, value: "false" }
             - name: PROWLARR__AUTH__APIKEY
               valueFrom:
                 secretKeyRef: { name: media, key: PROWLARR_API_KEY }

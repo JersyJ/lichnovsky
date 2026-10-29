@@ -45,6 +45,9 @@ spec:
           image: ghcr.io/home-operations/radarr:7.0.0.10815
           env:
             - { name: TZ, value: "Europe/Prague" }
+            # Overrides config.xml: debug logs fill the disk of the Pi; no usage data to the developers.
+            - { name: RADARR__LOG__LEVEL, value: info }
+            - { name: RADARR__LOG__ANALYTICSENABLED, value: "false" }
             - name: RADARR__AUTH__APIKEY
               valueFrom:
                 secretKeyRef: { name: media, key: RADARR_API_KEY }

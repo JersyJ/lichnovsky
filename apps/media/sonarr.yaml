@@ -45,6 +45,9 @@ spec:
           image: ghcr.io/home-operations/sonarr:5.0.0.2838
           env:
             - { name: TZ, value: "Europe/Prague" }
+            # Overrides config.xml: debug logs fill the disk of the Pi; no usage data to the developers.
+            - { name: SONARR__LOG__LEVEL, value: info }
+            - { name: SONARR__LOG__ANALYTICSENABLED, value: "false" }
             - name: SONARR__AUTH__APIKEY
               valueFrom:
                 secretKeyRef: { name: media, key: SONARR_API_KEY }
