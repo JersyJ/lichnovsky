@@ -62,7 +62,7 @@ spec:
             periodSeconds: 30
           resources:
             requests: { cpu: 20m, memory: 192Mi }
-            limits: { memory: 512Mi }
+            limits: { memory: 768Mi }   # audio sync (ffmpeg + ffsubsync) runs in this pod
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true

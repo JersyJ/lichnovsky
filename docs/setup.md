@@ -268,6 +268,7 @@ Then run `scripts/seal.sh <name>` for each secret:
 | `vaultwarden` | An argon2 hash of the admin page password | Make the hash with `kubectl run vw-hash --rm -it --restart=Never --image=vaultwarden/server:1.37.3 -- /vaultwarden hash` |
 | `papra` | None | |
 | `media` | None | API keys for Sonarr, Radarr and Prowlarr, and the qBittorrent password. Shows the qBittorrent login one time. Keep it. |
+| `lingarr` | The DeepL API key | Lingarr translates subtitles for Bazarr. A free key at [deepl.com/pro-api](https://www.deepl.com/pro-api) ends with `:fx`. |
 | `share` | The R2 access key ID and secret for Gokapi | Make the token in the dashboard: **R2 → Manage API tokens**, *Object Read & Write*, only for the bucket `lichnovsky-share` (step 5 makes the bucket). |
 | `backups` | None | Shows the **restic password** one time. Keep it in the password manager and on paper. The script refuses to run if backup secrets exist. |
 
@@ -422,6 +423,8 @@ these short names in the forms below.
    qBittorrent as download client (*Settings → Download Clients → Test* is green). Prowlarr shows
    Sonarr and Radarr under *Settings → Apps*.
 3. **Prowlarr → Indexers → Add Indexer:** Add the indexers that you use. Push *Test* for each one.
+   Keep the *Indexer Priority* at 25 for all: Sonarr and Radarr compare the priority before the
+   seeders, thus equal priorities let the seeders decide between releases with the same score.
    If an indexer is behind a Cloudflare check, give it the tag `flaresolverr`. Push *Sync App
    Indexers*, or wait some minutes. The indexers then show in Sonarr and Radarr under *Settings →
    Indexers*.
@@ -430,8 +433,14 @@ these short names in the forms below.
 5. **Bazarr:** Make the login (*Settings → General → Security → Forms*). Then:
    - *Settings → Languages:* Make a profile, for example Czech + English. Set it as the default for
      series and movies.
-   - *Settings → Providers:* Add OpenSubtitles.com (free account) and Podnapisi. Titulky.com is
-     good for Czech, but it needs a VIP membership.
+   - *Settings → Providers:* Add OpenSubtitles.com (free account), SubDL (free API key from
+     subdl.com) and YIFY Subtitles. Titulky.com is good for Czech, but it needs a VIP membership.
+     (Podnapisi is offline; Bazarr removed it.)
+   - *Settings → Subtitles → Audio synchronization:* Select *Automatic subtitles audio
+     synchronization*, and the two thresholds with 90 (series) and 70 (movies). Then Bazarr aligns
+     each subtitle that is not an exact match for the file.
+   - *Settings → Subtitles → Translating:* Select *Lingarr* with the address `http://lingarr:9876`
+     and no token. Then *Translate* on a subtitle makes Czech from English with DeepL.
    - *Settings → Library → Sonarr:* Select *Enabled*. Enter address `sonarr`, port `80` and the API
      key from Sonarr (*Settings → General*). On the *Radarr* tab, enter `radarr`, `80` and the key
      from Radarr. Do not add path mappings, because the paths are the same in all apps.

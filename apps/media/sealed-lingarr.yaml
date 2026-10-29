@@ -1,0 +1,13 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: lingarr
+  namespace: tv
+spec:
+  encryptedData:
+    DEEPL_API_KEY: AgARKA80FWDHcMXHhtjnCrLV+ovk6TTflT+Hx1GIrE9fTEHo1OhP6R7s/EvmY5ueEyG3CcjrSbzQnkUsUMbsLGF9H2u68ve9maeuVOQ3cac/AmXiqJDFe3bHxRmrsfKASSBZEObBiFBTGAHGbwbYFzzW+Vgey7kLmXuPlJeLNWl0g61R8mHHHd3rsk3BiwrHrx+y4uocYGOs+pbHMDAxn9H7fpA6XdC0WudlR1s6RiI4aC6gKo0yN3ANA+WaEgAfjRHdrw24zmnyqHfWpRFF41OEZ9bDvOhqDH7BgbadaCkoM9YduBek/fy+MZGEHJB6lOJ9YysZ5ZqKV1drQ93mcHNYuxbvzaVrDGlItdNufMV77W6pz5yo1LuNnBNMfABfLhNTbOUzDQ/K1EW2SRuSjelzDRoq8dSeDk1t4x4u930f4UVI23jo0D6LdkcuzzRMBRDYEGcJaonoPVMNYnizHo3UlrcjKD+mxxH8ffy4+rY3TIuPldYQ40EzTDCfEGm+6ClhjcH9O83hCQmI08PWuttpzjTwhU6vpy1PfNefzDwkoDMaevcbruiSWP8e+7Ho0rKV2O8erikrnG7jIs+w1Kr+a8ZplEEzggbIvyr5yfXCpUaYcy5oFX++BRFf8w+3T30CewSl2UkcKthBSFNgF64pJA/77INxtWdDRbHk9fjMMzsOfehZ+3Hhej8dJlNmss5lTzrtzjNvNZHHvJL9wFhyr1HoyKStYdLPz9VI7K/gpzvpU7wdmN8=
+  template:
+    metadata:
+      name: lingarr
+      namespace: tv

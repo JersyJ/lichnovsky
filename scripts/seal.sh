@@ -75,6 +75,10 @@ print(base64.b64encode(salt).decode() + ":" + base64.b64encode(key).decode())')
       "QBITTORRENT_PASSWORD=$qbt" "QBITTORRENT_PASSWORD_PBKDF2=$hash"
     echo "qBittorrent login: admin / $qbt   (save it)" ;;
 
+  lingarr)               # DeepL -> Account -> API Keys (Free key ends with :fx)
+    key=$(ask 'DeepL API key')
+    seal apps/media/sealed-lingarr.yaml tv lingarr "DEEPL_API_KEY=$key" ;;
+
   share)                 # R2 -> Manage API tokens -> Object Read & Write, only bucket lichnovsky-share
     id=$(ask 'R2 Access Key ID'); secret=$(ask 'R2 Secret Access Key')
     seal apps/share/sealed-gokapi-r2.yaml share gokapi-r2 "access-key-id=$id" "secret-access-key=$secret" ;;
@@ -107,6 +111,6 @@ print(base64.b64encode(salt).decode() + ":" + base64.b64encode(key).decode())')
     seal platform/backups/secrets/sealed-rest-server-htpasswd.yaml backups rest-server-htpasswd "htpasswd=$htpasswd"
     echo "now add a Schedule for $ns (platform/backups/schedules.yaml) and allow it in rest-server's NetworkPolicy" ;;
 
-  *) echo "usage: $0 {cloudflare-api-token|cloudflared-token|grafana-admin|alertmanager-notify|argocd-notifications|tailscale-operator-oauth|vaultwarden|papra|media|share|backups|backup-namespace <ns>}" >&2
+  *) echo "usage: $0 {cloudflare-api-token|cloudflared-token|grafana-admin|alertmanager-notify|argocd-notifications|tailscale-operator-oauth|vaultwarden|papra|media|lingarr|share|backups|backup-namespace <ns>}" >&2
      exit 1 ;;
 esac
