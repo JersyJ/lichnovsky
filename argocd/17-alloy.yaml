@@ -19,12 +19,18 @@ spec:
         controller:
           type: statefulset     # one replica is enough; it reads logs via the API
           replicas: 1
+          # local-path makes a plain folder on the disk of the Pi: the size is not reserved or
+          # enforced (the positions take about 60 KB). apiVersion, kind and volumeMode as Kubernetes
+          # sets them, otherwise Argo CD shows the StatefulSet as OutOfSync.
           volumeClaimTemplates:
-            - metadata:
+            - apiVersion: v1
+              kind: PersistentVolumeClaim
+              metadata:
                 name: storage
               spec:
                 accessModes: ["ReadWriteOnce"]
                 storageClassName: local-path
+                volumeMode: Filesystem
                 resources:
                   requests:
                     storage: 128Mi
