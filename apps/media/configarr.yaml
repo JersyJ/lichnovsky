@@ -152,18 +152,23 @@ data:
       main:
         base_url: http://sonarr
         api_key: !env SONARR_API_KEY
+        # Sonarr v5 keeps the sizes in each quality profile and ignores these; the real minimums
+        # are in quality_sizes of the profiles below. Kept for the TRaSH defaults of other qualities.
         quality_definition:
           type: series
-          # Minimum 2.5 MB per minute (about 110 MB for a 44 min episode), so small x265 encodes
-          # pass. TRaSH: 15. Applies to every profile.
           qualities:
             - { quality: HDTV-1080p, min: 2.5, preferred: 995, max: 1000 }
             - { quality: WEBRip-1080p, min: 2.5, preferred: 995, max: 1000 }
             - { quality: WEBDL-1080p, min: 2.5, preferred: 995, max: 1000 }
+            - { quality: Bluray-1080p, min: 2.5, preferred: 995, max: 1000 }
         # Do not prefer REPACK/PROPER by itself: otherwise a v2 file blocks every better-scored v1
         # release. TRaSH's Repack/Proper format adds a few points instead.
+        # Subtitles that come with a release (.srt, e.g. from YTS or in a pack's Subs folder) are
+        # imported next to the video; Bazarr then sees them.
         media_management:
           downloadPropersAndRepacks: doNotPrefer
+          importExtraFiles: true
+          extraFileExtensions: srt
         delete_unmanaged_quality_profiles:   # the built-in Any, SD, HD-720p, Ultra-HD, ...
           enabled: true
         include:
@@ -177,8 +182,11 @@ data:
             to: 1080p
           - from: WEB-2160p (Combined)
             to: 4K, else 1080p
-        # 1080p (TRaSH name WEB-1080p): HDTV-1080p in the same group as WEB, because x265 encodes
-        # without "WEB" in the name parse as HDTV. The score then decides.
+        # 1080p (TRaSH name WEB-1080p): HDTV-1080p and Bluray-1080p in the same group as WEB,
+        # because x265 encodes without "WEB" in the name parse as HDTV, and many x265 season packs
+        # are Blu-ray encodes. The score then decides.
+        # Minimum 2.5 MB per minute (about 110 MB for a 44 min episode), so small x265 encodes
+        # pass. TRaSH: 15 (WEB, HDTV), 50.4 (Bluray).
         quality_profiles:
           - name: WEB-1080p
             upgrade:
@@ -186,7 +194,17 @@ data:
               until_quality: WEB 1080p
             qualities:
               - name: WEB 1080p
-                qualities: [WEBDL-1080p, WEBRip-1080p, HDTV-1080p]
+                qualities: [WEBDL-1080p, WEBRip-1080p, HDTV-1080p, Bluray-1080p]
+            quality_sizes:
+              - { quality: WEBDL-1080p, min: 2.5, preferred: 995 }
+              - { quality: WEBRip-1080p, min: 2.5, preferred: 995 }
+              - { quality: HDTV-1080p, min: 2.5, preferred: 995 }
+              - { quality: Bluray-1080p, min: 2.5, preferred: 995 }
+          # The 1080p fallback of the 4K profile gets the same minimum.
+          - name: WEB-2160p (Combined)
+            quality_sizes:
+              - { quality: WEBDL-1080p, min: 2.5, preferred: 995 }
+              - { quality: WEBRip-1080p, min: 2.5, preferred: 995 }
         # HEVC scores for 1080p. x265 (HD): TRaSH -10000.
         custom_formats:
           - trash_ids:
@@ -261,8 +279,12 @@ data:
             - { quality: Bluray-1080p, min: 8, preferred: 1999, max: 2000 }
         # Do not prefer REPACK/PROPER by itself: otherwise a v2 file blocks every better-scored v1
         # release. TRaSH's Repack/Proper format adds a few points instead.
+        # Subtitles that come with a release (.srt, e.g. from YTS or in a pack's Subs folder) are
+        # imported next to the video; Bazarr then sees them.
         media_management:
           downloadPropersAndRepacks: doNotPrefer
+          importExtraFiles: true
+          extraFileExtensions: srt
         delete_unmanaged_quality_profiles:   # the built-in Any, SD, HD-720p, Ultra-HD, ...
           enabled: true
         include:
