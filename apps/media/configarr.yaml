@@ -157,10 +157,10 @@ data:
         quality_definition:
           type: series
           qualities:
-            - { quality: HDTV-1080p, min: 2.5, preferred: 995, max: 1000 }
-            - { quality: WEBRip-1080p, min: 2.5, preferred: 995, max: 1000 }
-            - { quality: WEBDL-1080p, min: 2.5, preferred: 995, max: 1000 }
-            - { quality: Bluray-1080p, min: 2.5, preferred: 995, max: 1000 }
+            - { quality: HDTV-1080p, min: 2.5, preferred: 20, max: 1000 }
+            - { quality: WEBRip-1080p, min: 2.5, preferred: 20, max: 1000 }
+            - { quality: WEBDL-1080p, min: 2.5, preferred: 20, max: 1000 }
+            - { quality: Bluray-1080p, min: 2.5, preferred: 20, max: 1000 }
         # Do not prefer REPACK/PROPER by itself: otherwise a v2 file blocks every better-scored v1
         # release. TRaSH's Repack/Proper format adds a few points instead.
         # Subtitles that come with a release (.srt, e.g. from YTS or in a pack's Subs folder) are
@@ -186,7 +186,9 @@ data:
         # because x265 encodes without "WEB" in the name parse as HDTV, and many x265 season packs
         # are Blu-ray encodes. The score then decides.
         # Minimum 2.5 MB per minute (about 110 MB for a 44 min episode), so small x265 encodes
-        # pass. TRaSH: 15 (WEB, HDTV), 50.4 (Bluray).
+        # pass. TRaSH: 15 (WEB, HDTV), 50.4 (Bluray). Preferred 20 (about 880 MB for 44 min): the
+        # last tie-breaker (after score, priority and seeders) takes the release closest to it.
+        # Near the maximum, it took the biggest one.
         quality_profiles:
           - name: WEB-1080p
             upgrade:
@@ -196,15 +198,15 @@ data:
               - name: WEB 1080p
                 qualities: [WEBDL-1080p, WEBRip-1080p, HDTV-1080p, Bluray-1080p]
             quality_sizes:
-              - { quality: WEBDL-1080p, min: 2.5, preferred: 995 }
-              - { quality: WEBRip-1080p, min: 2.5, preferred: 995 }
-              - { quality: HDTV-1080p, min: 2.5, preferred: 995 }
-              - { quality: Bluray-1080p, min: 2.5, preferred: 995 }
+              - { quality: WEBDL-1080p, min: 2.5, preferred: 20 }
+              - { quality: WEBRip-1080p, min: 2.5, preferred: 20 }
+              - { quality: HDTV-1080p, min: 2.5, preferred: 20 }
+              - { quality: Bluray-1080p, min: 2.5, preferred: 20 }
           # The 1080p fallback of the 4K profile gets the same minimum.
           - name: WEB-2160p (Combined)
             quality_sizes:
-              - { quality: WEBDL-1080p, min: 2.5, preferred: 995 }
-              - { quality: WEBRip-1080p, min: 2.5, preferred: 995 }
+              - { quality: WEBDL-1080p, min: 2.5, preferred: 20 }
+              - { quality: WEBRip-1080p, min: 2.5, preferred: 20 }
         # HEVC scores for 1080p. x265 (HD): TRaSH -10000.
         custom_formats:
           - trash_ids:
@@ -271,12 +273,13 @@ data:
         quality_definition:
           type: movie
           # Minimum 8 MB per minute (about 1 GB for 2 hours), so mid-size x265 encodes pass. TRaSH:
-          # 12.5 (WEB), 33.8 (HDTV), 50.8 (Bluray). Applies to every profile.
+          # 12.5 (WEB), 33.8 (HDTV), 50.8 (Bluray). Applies to every profile. Preferred 25 (about
+          # 3 GB for 2 hours, below "x265 large (movie)"): see Sonarr.
           qualities:
-            - { quality: HDTV-1080p, min: 8, preferred: 1999, max: 2000 }
-            - { quality: WEBDL-1080p, min: 8, preferred: 1999, max: 2000 }
-            - { quality: WEBRip-1080p, min: 8, preferred: 1999, max: 2000 }
-            - { quality: Bluray-1080p, min: 8, preferred: 1999, max: 2000 }
+            - { quality: HDTV-1080p, min: 8, preferred: 25, max: 2000 }
+            - { quality: WEBDL-1080p, min: 8, preferred: 25, max: 2000 }
+            - { quality: WEBRip-1080p, min: 8, preferred: 25, max: 2000 }
+            - { quality: Bluray-1080p, min: 8, preferred: 25, max: 2000 }
         # Do not prefer REPACK/PROPER by itself: otherwise a v2 file blocks every better-scored v1
         # release. TRaSH's Repack/Proper format adds a few points instead.
         # Subtitles that come with a release (.srt, e.g. from YTS or in a pack's Subs folder) are
