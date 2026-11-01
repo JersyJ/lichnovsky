@@ -241,9 +241,11 @@ data:
               - name: WEB-1080p
                 score: -3000
           # TRaSH's "[Streaming Services] General" group gives each service +75 (a WEB-DL straight
-          # from the service). For x265 encodes the source says little, and the +75 beat a smaller
-          # release with more seeders. 0: seeders and size decide.
+          # from the service), "HD Streaming Boost" another +75 for some of them at 1080p. For x265
+          # encodes the source says little, and the +75 beat a smaller release with more seeders.
+          # 0: seeders and size decide.
           - trash_ids:
+              - 218e93e5702f44a68ad9e3c6ba87d2f0 # HD Streaming Boost
               - d660701077794679fd59e8bdf4ce3a29 # AMZN
               - d9e511921c8cedc7282e291b0209cdc5 # ATV
               - f67c9ca88f463a48346062e8ad07713f # ATVP
