@@ -10,4 +10,4 @@ resources:
 images:
   - name: web
     newName: ghcr.io/jersyj/lichnovsky-web
-    newTag: "sha-b1c402d7e5fa"
+    newTag: "sha-53b3b961b755"
