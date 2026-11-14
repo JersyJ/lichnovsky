@@ -42,7 +42,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: radarr
-          image: ghcr.io/home-operations/radarr:7.0.1.10859
+          image: ghcr.io/home-operations/radarr:7.0.2.10888
           env:
             - { name: TZ, value: "Europe/Prague" }
             # Overrides config.xml: debug logs fill the disk of the Pi; no usage data to the developers.
