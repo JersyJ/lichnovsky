@@ -42,7 +42,14 @@ spec:
               args:
                 - |
                   rc=0
-                  if nc -z -w 5 rest-server.backups.svc.cluster.local 8000; then
+                  # Some tries: the policy controller needs a moment to learn the address of a new
+                  # pod, and refuses its connections until then.
+                  control=failed
+                  for try in 1 2 3 4 5; do
+                    if nc -z -w 5 rest-server.backups.svc.cluster.local 8000; then control=ok; break; fi
+                    sleep 3
+                  done
+                  if [ "$control" = ok ]; then
                     echo "control ok: rest-server.backups:8000 is open"
                   else
                     echo "CONTROL FAILED: rest-server.backups:8000 must be open from this namespace"; rc=1

@@ -1,0 +1,55 @@
+# Alerts from the logs: failed logins. Loki evaluates these rules and sends the alerts to
+# Alertmanager, thus they go to Discord like all other alerts (argocd/16-loki.yaml sets this up).
+# The rules sidecar of Loki loads each ConfigMap with the label loki_rule. The annotation (the
+# default name that the sidecar reads) puts the file in the folder of the tenant "fake", which is
+# the tenant name when auth_enabled is false.
+# To test a query, use Grafana -> Explore -> Loki.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: loki-alert-rules
+  namespace: monitoring
+  labels:
+    loki_rule: ""
+  annotations:
+    k8s-sidecar-target-directory: fake
+data:
+  logins.yaml: |
+    groups:
+      - name: logins
+        interval: 1m
+        rules:
+          - alert: VaultwardenFailedLogins
+            expr: >-
+              sum(count_over_time({namespace="vaultwarden", container="vaultwarden"} |= "Username or
+              password is incorrect" [10m])) >= 5
+            labels: { severity: warning, namespace: vaultwarden }
+            annotations:
+              summary: >-
+                Vaultwarden: {{ $value }} failed logins in 10 minutes. The log lines show the IP and
+                the username (Grafana -> Explore -> Loki, namespace vaultwarden).
+          - alert: VaultwardenAdminTokenRejected
+            expr: >-
+              sum(count_over_time({namespace="vaultwarden", container="vaultwarden"} |= "Invalid
+              admin token" [30m])) >= 3
+            labels: { severity: warning, namespace: vaultwarden }
+            annotations:
+              summary: "Vaultwarden: {{ $value }} wrong admin tokens on /admin in 30 minutes."
+          - alert: ArgoCDFailedLogins
+            expr: sum(count_over_time({namespace="argocd"} |~ "failed login|too many failed logins" [10m])) >= 3
+            labels: { severity: warning, namespace: argocd }
+            annotations:
+              summary: "Argo CD: {{ $value }} failed logins in 10 minutes. An Argo CD admin controls the cluster."
+          - alert: GrafanaFailedLogins
+            expr: >-
+              sum(count_over_time({namespace="monitoring", container="grafana"} |~ "(?i)invalid
+              username or password|password-auth.failed" [10m])) >= 5
+            labels: { severity: warning, namespace: monitoring }
+            annotations:
+              summary: "Grafana: {{ $value }} failed logins in 10 minutes."
+          # Gokapi writes two or three lines for each failed login (one for each address it sees).
+          - alert: GokapiFailedLogins
+            expr: sum(count_over_time({namespace="share"} |= "Invalid login for user" [10m])) >= 10
+            labels: { severity: warning, namespace: share }
+            annotations:
+              summary: "Gokapi: {{ $value }} log lines about failed logins in 10 minutes. This login page is public."

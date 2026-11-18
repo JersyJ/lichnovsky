@@ -38,8 +38,21 @@ spec:
             delete_request_store: filesystem
           pattern_ingester:
             enabled: false
-          ruler:
+          # Alert rules on logs (platform/monitoring/log-alerts.yaml). The rules sidecar writes them to
+          # /rules/fake ("fake" is the tenant when auth_enabled is false). Alerts go to Alertmanager,
+          # thus to Discord. rule_path is the work folder of the ruler; its default is /rules, which
+          # must not be the same folder as the storage.
+          rulerConfig:
+            storage:
+              type: local
+              local:
+                directory: /rules
+            rule_path: /var/loki/rules-temp
+            alertmanager_url: http://kube-prometheus-stack-alertmanager.monitoring.svc.cluster.local:9093
             enable_api: false
+            ring:
+              kvstore:
+                store: inmemory
         singleBinary:
           replicas: 1
           persistence:
