@@ -57,8 +57,9 @@ cloudflared uses its own Traefik entry point (`tunnel`, Service `traefik-tunnel`
 the LAN IP. Only this entry point trusts `X-Forwarded-*` and `CF-Connecting-IP`, so apps see the
 real internet client IP. On the LAN and Tailscale entry points, Traefik ignores these headers.
 Thus, no device can fake its client IP. The Traefik Service uses `externalTrafficPolicy: Local`,
-thus LAN clients keep their own IP. Tailscale clients arrive as `10.42.0.1`, because the subnet
-router masquerades them. An app sees the client IP only if it trusts the Traefik pods
+thus LAN clients keep their own IP. Tailscale clients keep their tailnet address (`100.x`): the
+subnet router runs on the network of the Pi, and the Pi itself is the destination, so nothing
+masquerades them. An app sees the client IP only if it trusts the Traefik pods
 (`10.42.0.0/16`) as a proxy: Gokapi, Jellyfin (`KnownProxies`), qBittorrent (reverse proxy
 support), Sonarr, Radarr and Prowlarr (`TrustedNetworks`), Uptime Kuma and Seerr (trust proxy).
 AdGuard counts failed logins by the proxy address, so its lock applies to all clients.

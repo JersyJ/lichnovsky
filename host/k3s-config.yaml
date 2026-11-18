@@ -25,4 +25,13 @@ kubelet-arg:
   - "container-log-max-size=10Mi"
   - "container-log-max-files=3"
 
+# Audit log: access to Secrets, exec into pods, changes of access rights (k3s-audit-policy.yaml).
+# Read it on the Pi: sudo jq . /var/lib/rancher/k3s/server/logs/audit.log
+kube-apiserver-arg:
+  - "audit-policy-file=/var/lib/rancher/k3s/server/audit.yaml"
+  - "audit-log-path=/var/lib/rancher/k3s/server/logs/audit.log"
+  - "audit-log-maxage=30"
+  - "audit-log-maxbackup=5"
+  - "audit-log-maxsize=50"
+
 # Control-plane metrics stay off: many series for little value (kube-prometheus-stack skips them too).

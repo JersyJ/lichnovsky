@@ -20,7 +20,9 @@ spec:
       websecure:
         asDefault: true
         http:
-          middlewares: ["kube-system-strip-client-ip@kubernetescrd"]
+          middlewares:
+            - kube-system-strip-client-ip@kubernetescrd
+            - kube-system-hsts@kubernetescrd
       # Trusts X-Forwarded-* from cloudflared, so apps see the real client IP and https. Not on
       # the LoadBalancer, so LAN and Tailscale devices can't reach it.
       tunnel:
@@ -33,6 +35,8 @@ spec:
           tunnel: true
         forwardedHeaders:
           trustedIPs: ["10.42.0.0/16"]
+        http:
+          middlewares: ["kube-system-hsts@kubernetescrd"]
     service:
       # Local: kube-proxy doesn't masquerade LAN traffic, so Traefik sees the client IP instead of
       # 10.42.0.1. Only works on nodes that run Traefik: with a second node, make Traefik a

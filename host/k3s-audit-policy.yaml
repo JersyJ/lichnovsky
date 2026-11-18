@@ -1,0 +1,26 @@
+# /var/lib/rancher/k3s/server/audit.yaml. 03-install-k3s.sh installs it.
+# A small audit log for "who did what" after an incident: each access to a Secret, each exec,
+# attach or port-forward into a pod, and each change of access rights. Metadata only: the log has
+# no Secret values and no request bodies. All other requests are not logged.
+apiVersion: audit.k8s.io/v1
+kind: Policy
+omitStages: ["RequestReceived"]
+rules:
+  # The control plane reads Secrets all the time; these entries would hide the others.
+  - level: None
+    users: ["system:apiserver", "system:kube-controller-manager", "system:kube-scheduler"]
+  - level: None
+    userGroups: ["system:nodes"]
+  - level: Metadata
+    resources:
+      - group: ""
+        resources: ["secrets"]
+  - level: Metadata
+    resources:
+      - group: ""
+        resources: ["pods/exec", "pods/attach", "pods/portforward"]
+  - level: Metadata
+    verbs: ["create", "update", "patch", "delete"]
+    resources:
+      - group: "rbac.authorization.k8s.io"
+  - level: None

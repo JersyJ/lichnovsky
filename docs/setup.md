@@ -270,7 +270,7 @@ Then run `scripts/seal.sh <name>` for each secret:
 | `media` | None | API keys for Sonarr, Radarr and Prowlarr, and the qBittorrent password. Shows the qBittorrent login one time. Keep it. |
 | `lingarr` | The DeepL API key | Lingarr translates subtitles for Bazarr. A free key at [deepl.com/pro-api](https://www.deepl.com/pro-api) ends with `:fx`. |
 | `share` | The R2 access key ID and secret for Gokapi | Make the token in the dashboard: **R2 → Manage API tokens**, *Object Read & Write*, only for the bucket `lichnovsky-share` (step 5 makes the bucket). |
-| `backups` | None | Shows the **restic password** one time. Keep it in the password manager and on paper. The script refuses to run if backup secrets exist. |
+| `backups` | None | Shows the **restic password** one time. Keep it in the password manager and on paper. The script refuses to run if backup secrets exist. It also seals the password for the weekly prune job. To seal only that one again, run `scripts/seal.sh backup-prune`. |
 
 The values do not go to the disk or to a command line. They go to `kubeseal` through stdin. Commit
 the `sealed-*.yaml` files and push. Argo CD applies them in approximately 3 minutes.

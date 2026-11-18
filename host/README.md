@@ -10,12 +10,13 @@ Raspberry Pi OS. You can run each script again safely.
 | `03-install-k3s.sh` | Installs k3s with the two files below and waits for the node. It also upgrades k3s (change `K3S_VERSION`). |
 | `journald-homelab.conf` | `02-setup-pi.sh` installs it. |
 | `k3s-config.yaml` | `/etc/rancher/k3s/config.yaml`. `03-install-k3s.sh` installs it. |
+| `k3s-audit-policy.yaml` | `/var/lib/rancher/k3s/server/audit.yaml`: what the API server writes to its audit log. `03-install-k3s.sh` installs it. |
 | `k3s-memory.conf` | `/etc/systemd/system/k3s.service.d/memory.conf`. `03-install-k3s.sh` installs it. |
 
 For the procedure and the checks between the scripts, refer to
 [docs/setup.md, step 3](../docs/setup.md#3-the-pi).
 
-To change `k3s-config.yaml` or `k3s-memory.conf` later:
+To change `k3s-config.yaml`, `k3s-audit-policy.yaml` or `k3s-memory.conf` later:
 
 1. Copy the files to the Pi.
 2. Run `03-install-k3s.sh` again.

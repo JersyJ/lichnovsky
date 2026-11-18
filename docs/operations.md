@@ -74,6 +74,19 @@ kubectl -n tailscale exec $TS -c tailscale -- tailscale status         # direct 
 - **Argo CD → Discord** (same channel). Argo CD sends ❌ with its error when a sync fails. It sends
   ✅ when an app is healthy with a new revision (chart version or commit). The configuration is
   under `notifications` in `bootstrap/argocd-values.yaml`.
+- **Failed logins → Discord.** Loki evaluates the rules in `platform/monitoring/log-alerts.yaml`
+  and sends the alerts to Alertmanager. The rules count failed logins in the logs of Vaultwarden
+  (also wrong admin tokens), Argo CD, Grafana and Gokapi. To change a limit or add a rule, edit
+  the file and push. Test a query in Grafana → *Explore* → Loki.
+- **NetworkPolicy check → Discord.** Each 30 minutes, the CronJob `netpol-canary`
+  (`platform/monitoring/canary.yaml`) tries connections that the NetworkPolicies must block. If
+  one opens, you get the alert `NetworkPolicyNotEnforced`. Read
+  `kubectl -n monitoring logs -l app=netpol-canary --tail=20`, then refer to
+  [Troubleshooting](#troubleshooting), "A NetworkPolicy has no effect".
+- **Audit log.** The API server writes each access to a Secret, each `exec` into a pod and each
+  change of access rights to `/var/lib/rancher/k3s/server/logs/audit.log` on the Pi
+  (`host/k3s-audit-policy.yaml`). No alert uses it. It tells you who did what after an incident:
+  `sudo jq 'select(.objectRef.resource=="secrets") | {t: .requestReceivedTimestamp, user: .user.username, verb, ns: .objectRef.namespace, name: .objectRef.name}' /var/lib/rancher/k3s/server/logs/audit.log`.
 - **Heartbeat Worker.** If the Pi stops, all monitors on the Pi stop too. Thus, a Cloudflare Worker
   gets `https://lichnovsky.eu/healthz` each 5 minutes. After 2 failures in sequence, it sends 🔴 to
   Discord. When the site is available again, it sends 🟢 with the downtime. The Worker finds a
@@ -91,7 +104,11 @@ kubectl -n tailscale exec $TS -c tailscale -- tailscale status         # direct 
 The apps write consistent snapshots into their own volumes. Each night, k8up runs restic in each
 namespace. restic sends encrypted, deduplicated snapshots to the restic rest-server, which keeps them
 on the SD card. Each namespace has its own repository and login, and can get only to its own
-repository (`--private-repos`).
+repository (`--private-repos`). The rest-server is append-only (`--append-only`): a login can add
+snapshots, but it cannot delete or change them. Thus, a stolen backup login cannot remove the
+history. Because of this, k8up cannot prune. The CronJob `restic-prune`
+(`platform/backups/prune.yaml`) removes old snapshots each Sunday at 06:30, directly on the disk.
+To run it immediately: `kubectl -n backups create job --from=cronjob/restic-prune restic-prune-now`.
 
 ```
 Vaultwarden ── vaultwarden backup (02:30) ──┐
@@ -105,7 +122,7 @@ k3s etcd snapshots (each 12 h) ─────────────┴──�
 | Manifests, configuration, sealed secrets | GitHub | Each push |
 | Private key of Sealed Secrets | Password manager and offline | After the installation, and again from time to time (the key changes each 30 days) |
 | restic password, Grafana password, k3s token | Password manager | When you make them |
-| Vaultwarden, Papra, Uptime Kuma, AdGuard, media stack settings (Sonarr, Radarr, Prowlarr, Bazarr, Seerr, qBittorrent), Gokapi settings and database | SD card | Each day. Keep 7 daily, 4 weekly, 6 monthly. `restic check` each week. |
+| Vaultwarden, Papra, Uptime Kuma, AdGuard, media stack settings (Sonarr, Radarr, Prowlarr, Bazarr, Seerr, qBittorrent), Gokapi settings and database | SD card | Each day. Keep 7 daily, 4 weekly, 6 monthly (`restic-prune`, each week). `restic check` each week. |
 | etcd (cluster state) | SD card | Each 12 hours. Keep 10. |
 | **No backup:** Prometheus and Loki data, Jellyfin configuration and media (also the downloads), Immich photo library, the files that Gokapi shares (they are in R2 and expire) | – | You can make them again, or they are too large for the card |
 
@@ -504,5 +521,6 @@ availability.
 | Backups fail, and the rest-server pod is `Pending` | The SD card is not mounted (`findmnt /srv/backup`). Install the card again and run `sudo mount /srv/backup`. |
 | A large upload fails away from home, but works at home | The 100 MB request limit of Cloudflare. Use Tailscale. |
 | Tailscale is slow away from home | The connection uses a relay. Do the [Tailscale check](#check-tailscale). |
+| An app cannot connect to a different app or to a device at home (timeout) | A NetworkPolicy blocks it. Pods in `vaultwarden`, `papra`, `share`, `tv` and `web` can connect only to their own namespace, DNS, the backup server and the internet (`egress` policy in each app folder). Only Traefik can connect to Vaultwarden and Papra. Only Traefik and the website can connect into `monitoring`. Add the connection to the policy of that namespace. |
 | A NetworkPolicy has no effect | The k3s policy controller cannot read the firewall rules. On the Pi, `sudo journalctl -u k3s \| grep "Aborting sync"` shows it. Usually Tailscale runs in nftables mode: do the [Tailscale check](#check-tailscale). |
 | No Tailscale access after the subnet router restarts | Remove `platform/tailscale/connector-host-network.yaml` in Git, push, and delete the `ts-pi-lan-*` pod. At home, `sudo tailscale set --accept-routes=false` on the laptop gives access through the LAN. |

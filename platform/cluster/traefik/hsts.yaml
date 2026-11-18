@@ -1,0 +1,15 @@
+# Strict-Transport-Security for all apps, on all three paths: after the first visit, a browser uses
+# only HTTPS for lichnovsky.eu and its subdomains for one year, and shows no "continue anyway"
+# button on a certificate error. forceSTSHeader: the tunnel entry point gets plain HTTP from
+# cloudflared (TLS ends at Cloudflare), and without it Traefik adds the header only on TLS
+# connections. Not for the preload list: that is hard to undo.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: hsts
+  namespace: kube-system
+spec:
+  headers:
+    stsSeconds: 31536000
+    stsIncludeSubdomains: true
+    forceSTSHeader: true

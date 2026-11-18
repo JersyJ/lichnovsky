@@ -25,6 +25,9 @@ install_if_changed() {   # <source> <destination> <mode>
   install -D -m "$3" "$1" "$2"; changed=true; echo "wrote $2"
 }
 install_if_changed "$HERE/k3s-config.yaml" /etc/rancher/k3s/config.yaml 0600
+# The API server does not start if the audit policy or the log folder is missing.
+mkdir -p -m 700 /var/lib/rancher/k3s/server/logs
+install_if_changed "$HERE/k3s-audit-policy.yaml" /var/lib/rancher/k3s/server/audit.yaml 0600
 # Before the install, so k3s starts with the Go heap cap from the first boot.
 install_if_changed "$HERE/k3s-memory.conf" /etc/systemd/system/k3s.service.d/memory.conf 0644
 $changed || echo "unchanged"
