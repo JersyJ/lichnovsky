@@ -119,3 +119,12 @@ spec:
             summary: >-
               No successful backup of {{ $labels.namespace }} for 36 hours.
               Check `kubectl -n {{ $labels.namespace }} get backups,jobs,events`.
+        - alert: NetworkPolicyNotEnforced
+          # canary.yaml: the job fails when a connection opens that a NetworkPolicy must block.
+          expr: max(kube_job_failed{namespace="monitoring", job_name=~"netpol-canary-.*"}) > 0
+          labels: { severity: critical, namespace: monitoring }
+          annotations:
+            summary: >-
+              The NetworkPolicy check failed: a blocked connection opened, or the check itself is broken.
+              Read `kubectl -n monitoring logs -l app=netpol-canary --tail=20`, then
+              docs/operations.md, Troubleshooting, "A NetworkPolicy has no effect".

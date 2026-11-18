@@ -1,0 +1,66 @@
+# Checks that the NetworkPolicies are enforced. The k3s policy controller can stop without an error
+# that you see (docs/operations.md, Troubleshooting: "A NetworkPolicy has no effect"). Then every pod
+# could reach the tunnel entry point of Traefik, which trusts X-Forwarded-For, and call Vaultwarden
+# and Papra directly.
+# Each 30 minutes, this pod tries connections that the policies must block. If one opens, the job
+# fails and Discord gets the alert NetworkPolicyNotEnforced (monitors.yaml). The first connection is
+# a control that must open (this namespace may reach the rest-server): it shows that DNS and the
+# pod network work, so "blocked" means blocked by a policy.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: netpol-canary
+  namespace: monitoring
+spec:
+  schedule: "*/30 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      activeDeadlineSeconds: 120
+      ttlSecondsAfterFinished: 3600   # a failed job goes after one hour, so the alert can resolve
+      template:
+        metadata:
+          labels:
+            app: netpol-canary
+        spec:
+          restartPolicy: Never
+          automountServiceAccountToken: false
+          enableServiceLinks: false
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            runAsGroup: 65534
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: canary
+              image: busybox:1.37.0
+              command: ["/bin/sh", "-c"]
+              args:
+                - |
+                  rc=0
+                  if nc -z -w 5 rest-server.backups.svc.cluster.local 8000; then
+                    echo "control ok: rest-server.backups:8000 is open"
+                  else
+                    echo "CONTROL FAILED: rest-server.backups:8000 must be open from this namespace"; rc=1
+                  fi
+                  for target in traefik-tunnel.kube-system:80 vaultwarden.vaultwarden:80 papra.papra:80; do
+                    host=${target%:*}.svc.cluster.local; port=${target#*:}
+                    if nc -z -w 5 "$host" "$port"; then
+                      echo "OPEN, but a policy must block it: $target"; rc=1
+                    else
+                      echo "blocked, as expected: $target"
+                    fi
+                  done
+                  exit $rc
+              resources:
+                requests: { cpu: 5m, memory: 8Mi }
+                limits: { memory: 32Mi }
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: ["ALL"]

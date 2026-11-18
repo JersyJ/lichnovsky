@@ -1,0 +1,30 @@
+# Prometheus, Alertmanager and Loki have no login. Only pods in this namespace may call them; from
+# other namespaces, only Traefik gets to Grafana and Uptime Kuma, and the website gets to Uptime
+# Kuma (the status widget, web/nginx.conf). Without this, any pod could read all logs and metrics
+# and silence alerts. Traffic from the Pi itself always passes (kubelet probes, the admission
+# webhook of the Prometheus operator, kubectl port-forward). node-exporter is on the host network,
+# so no policy applies to it.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ingress
+  namespace: monitoring
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - podSelector: {}
+    - from:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: kube-system }
+          podSelector:
+            matchLabels: { app.kubernetes.io/name: traefik }
+      ports:
+        - port: 3000   # Grafana
+        - port: 3001   # Uptime Kuma
+    - from:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: web }
+      ports:
+        - port: 3001
