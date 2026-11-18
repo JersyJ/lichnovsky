@@ -94,7 +94,13 @@ print(base64.b64encode(salt).decode() + ":" + base64.b64encode(key).decode())')
       htpasswd+="$ns:{SHA}$(printf %s "$pw" | openssl dgst -sha1 -binary | openssl base64)"$'\n'
     done
     seal platform/backups/secrets/sealed-rest-server-htpasswd.yaml backups rest-server-htpasswd "htpasswd=$htpasswd"
+    seal platform/backups/secrets/sealed-restic-prune.yaml backups restic-prune "RESTIC_PASSWORD=$restic"
     echo "RESTIC PASSWORD: $restic   (save it in your password manager AND offline)" ;;
+
+  backup-prune)          # the restic password for the weekly prune job (platform/backups/prune.yaml), read from the cluster
+    restic=$(kubectl -n vaultwarden get secret k8up-repo -o jsonpath='{.data.RESTIC_PASSWORD}' | openssl base64 -d -A)
+    [[ -n $restic ]] || { echo "couldn't read the restic password from the cluster" >&2; exit 1; }
+    seal platform/backups/secrets/sealed-restic-prune.yaml backups restic-prune "RESTIC_PASSWORD=$restic" ;;
 
   backup-namespace)      # give one more namespace a backup login, keeping the existing ones
     ns=${2:?usage: $0 backup-namespace <namespace>}
@@ -111,6 +117,6 @@ print(base64.b64encode(salt).decode() + ":" + base64.b64encode(key).decode())')
     seal platform/backups/secrets/sealed-rest-server-htpasswd.yaml backups rest-server-htpasswd "htpasswd=$htpasswd"
     echo "now add a Schedule for $ns (platform/backups/schedules.yaml) and allow it in rest-server's NetworkPolicy" ;;
 
-  *) echo "usage: $0 {cloudflare-api-token|cloudflared-token|grafana-admin|alertmanager-notify|argocd-notifications|tailscale-operator-oauth|vaultwarden|papra|media|lingarr|share|backups|backup-namespace <ns>}" >&2
+  *) echo "usage: $0 {cloudflare-api-token|cloudflared-token|grafana-admin|alertmanager-notify|argocd-notifications|tailscale-operator-oauth|vaultwarden|papra|media|lingarr|share|backups|backup-prune|backup-namespace <ns>}" >&2
      exit 1 ;;
 esac

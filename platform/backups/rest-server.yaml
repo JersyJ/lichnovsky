@@ -1,5 +1,8 @@
 # --private-repos + htpasswd: user <namespace> can only reach /<namespace>/, so a compromised app
 # can't touch another app's backups.
+# --append-only: a login can add snapshots, but can't delete or change them (only lock files).
+# Thus, a stolen backup login can't wipe the history. k8up can't prune through this server;
+# prune.yaml does it directly on the disk.
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -52,6 +55,7 @@ spec:
       labels:
         app: rest-server
     spec:
+      automountServiceAccountToken: false   # the app never calls the Kubernetes API
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
@@ -67,6 +71,7 @@ spec:
             - --listen=:8000
             - --htpasswd-file=/etc/rest-server/htpasswd
             - --private-repos
+            - --append-only
             - --prometheus
             - --prometheus-no-auth
           ports:
@@ -109,7 +114,8 @@ spec:
       port: 8000
       targetPort: http
 ---
-# Only restic pods from the backed-up namespaces (and Prometheus) may talk to the server.
+# Only pods from the backed-up namespaces (and Prometheus) may talk to the server. The apps in
+# these namespaces can connect too, but they don't have the login.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:

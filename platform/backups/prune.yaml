@@ -1,0 +1,69 @@
+# The rest-server is append-only, so no backup login can delete snapshots. This job removes old
+# snapshots instead: each Sunday, directly on the backup disk, with the same retention that k8up
+# had (7 daily, 4 weekly, 6 monthly for each volume). It runs after the weekly checks (05:05-05:50).
+# The image is the one k8up uses (argocd/13-k8up.yaml installs it), thus the same restic version
+# writes and prunes. A failed run shows in Discord (alert KubeJobFailed).
+# Run it now: kubectl -n backups create job --from=cronjob/restic-prune restic-prune-now
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: restic-prune
+  namespace: backups
+spec:
+  schedule: "30 6 * * 0"
+  timeZone: Europe/Prague
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      template:
+        spec:
+          restartPolicy: Never
+          automountServiceAccountToken: false
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000          # owner of /srv/backup/restic, the same as the rest-server
+            runAsGroup: 1000
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: prune
+              image: ghcr.io/k8up-io/k8up:v2.16.1
+              command: ["/bin/sh", "-c"]
+              args:
+                - |
+                  set -u
+                  failed=0
+                  for repo in /data/*/; do
+                    [ -f "${repo}config" ] || continue
+                    echo "== ${repo}"
+                    restic -r "$repo" unlock || failed=1   # removes only stale locks
+                    restic -r "$repo" forget --prune \
+                      --keep-daily 7 --keep-weekly 4 --keep-monthly 6 || failed=1
+                  done
+                  exit $failed
+              env:
+                - { name: HOME, value: /tmp }
+                - { name: RESTIC_CACHE_DIR, value: /tmp/restic-cache }
+                - name: RESTIC_PASSWORD
+                  valueFrom:
+                    secretKeyRef: { name: restic-prune, key: RESTIC_PASSWORD }
+              volumeMounts:
+                - { name: data, mountPath: /data }
+                - { name: tmp, mountPath: /tmp }
+              resources:
+                requests: { cpu: 10m, memory: 64Mi }
+                limits: { memory: 512Mi }
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: ["ALL"]
+          volumes:
+            - name: data
+              persistentVolumeClaim:
+                claimName: backup-restic
+            - name: tmp
+              emptyDir: {}
