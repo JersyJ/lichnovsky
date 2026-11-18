@@ -7,9 +7,10 @@ on:
     paths: ["web/**", ".github/workflows/web.yml"]
   workflow_dispatch:
 
-permissions:
-  contents: write   # commit the new tag
-  packages: write   # push to ghcr.io
+# No rights by default; each job gets only what it needs. The third-party actions run in `build`,
+# which can push the image but can't write to the repository. Only `deploy` can push to main, and
+# it runs no third-party action.
+permissions: {}
 
 concurrency:
   group: web
@@ -20,8 +21,13 @@ env:
   DOCKER_METADATA_ANNOTATIONS_LEVELS: manifest,index
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write   # push to ghcr.io
+    outputs:
+      tag: ${{ steps.meta.outputs.version }}
     steps:
       - uses: actions/checkout@v7
 
@@ -51,12 +57,22 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # Git stays the source of truth: Argo CD deploys whatever tag is committed here.
+  # Git stays the source of truth: Argo CD deploys whatever tag is committed here.
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # commit the new tag
+    steps:
+      - uses: actions/checkout@v7
+
       - name: Deploy (commit the new tag)
         if: hashFiles('apps/web/kustomization.yaml') != ''
         env:
-          TAG: ${{ steps.meta.outputs.version }}
+          TAG: ${{ needs.build.outputs.tag }}
         run: |
+          # The tag comes from the build job: accept only the form that job makes.
+          [[ $TAG =~ ^sha-[0-9a-f]{12}$ ]] || { echo "unexpected tag: '$TAG'"; exit 1; }
           sed -i -E "s|^( *newTag:).*|\1 \"$TAG\"|" apps/web/kustomization.yaml
           git diff --quiet && exit 0
           git config user.name "github-actions[bot]"
