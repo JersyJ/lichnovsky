@@ -45,6 +45,7 @@ spec:
       labels:
         app: adguard
     spec:
+      automountServiceAccountToken: false   # the app never calls the Kubernetes API
       hostNetwork: true
       dnsPolicy: ClusterFirstWithHostNet
       nodeSelector:

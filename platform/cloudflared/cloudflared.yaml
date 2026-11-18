@@ -16,6 +16,7 @@ spec:
       labels:
         app: cloudflared
     spec:
+      automountServiceAccountToken: false   # the app never calls the Kubernetes API
       topologySpreadConstraints:
         - maxSkew: 1
           topologyKey: kubernetes.io/hostname

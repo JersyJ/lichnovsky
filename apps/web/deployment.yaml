@@ -15,6 +15,7 @@ spec:
       labels:
         app: web
     spec:
+      automountServiceAccountToken: false   # the app never calls the Kubernetes API
       securityContext:
         runAsNonRoot: true
         runAsUser: 101             # nginx user in nginx-unprivileged

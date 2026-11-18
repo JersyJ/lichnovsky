@@ -65,6 +65,7 @@ spec:
       labels:
         app: jellyfin
     spec:
+      automountServiceAccountToken: false   # the app never calls the Kubernetes API
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000

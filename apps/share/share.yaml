@@ -51,6 +51,7 @@ spec:
       labels:
         app: gokapi
     spec:
+      automountServiceAccountToken: false   # the app never calls the Kubernetes API
       # Kubernetes would set GOKAPI_PORT=tcp://... for the Service "gokapi", and Gokapi reads that
       # variable as its own port setting.
       enableServiceLinks: false

@@ -480,6 +480,7 @@ spec:
       backoffLimit: 1
       template:
         spec:
+          automountServiceAccountToken: false   # the app never calls the Kubernetes API
           restartPolicy: Never
           securityContext:
             runAsNonRoot: true
