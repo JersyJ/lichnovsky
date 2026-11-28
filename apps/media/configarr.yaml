@@ -495,7 +495,7 @@ spec:
               env:
                 - { name: TZ, value: "Europe/Prague" }
                 - { name: HOME, value: /tmp }
-                - { name: STOP_ON_ERROR, value: "true" }   # a failed run shows up as a failed Job
+                - { name: STOP_ON_ERROR, value: "true" }   # fails the Job; 4 hours without a success: ConfigarrNotSyncing
               envFrom:
                 - secretRef:
                     name: media

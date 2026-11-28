@@ -72,6 +72,10 @@ spec:
               routes:
                 - receiver: "null"   # always-firing by design; only useful for an external dead-man's switch
                   matchers: ['alertname =~ "Watchdog|InfoInhibitor"']
+                # A failed scheduled configarr run is ConfigarrNotSyncing's job (monitors.yaml). A manual
+                # run (configarr-now) still sends KubeJobFailed.
+                - receiver: "null"
+                  matchers: ['alertname = KubeJobFailed', 'namespace = tv', 'job_name =~ "configarr-[0-9]+"']
             # The chart's default inhibit rules (a critical alert mutes its warning/info twins).
             inhibit_rules:
               - source_matchers: ['severity = critical']

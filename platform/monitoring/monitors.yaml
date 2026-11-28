@@ -119,6 +119,26 @@ spec:
             summary: >-
               No successful backup of {{ $labels.namespace }} for 36 hours.
               Check `kubectl -n {{ $labels.namespace }} get backups,jobs,events`.
+        - alert: ConfigarrNotSyncing
+          # Replaces KubeJobFailed for configarr (Alertmanager routes that one to "null"). The job runs
+          # each hour and needs GitHub, so a short internet outage fails a run or two and fixes itself.
+          # After 4 hours without a success (4 failed or stuck runs), something is really broken.
+          # `for: 15m` waits for a run at the 4-hour mark that succeeds. A suspended CronJob is skipped.
+          # The last-success metric exists only after a first success, so a new CronJob counts from
+          # its creation time.
+          expr: >-
+            time() - max by (namespace, cronjob) (
+              kube_cronjob_status_last_successful_time{namespace="tv", cronjob="configarr"}
+              or kube_cronjob_created{namespace="tv", cronjob="configarr"}
+            ) > 4 * 3600
+            unless on (namespace, cronjob) kube_cronjob_spec_suspend == 1
+          for: 15m
+          labels: { severity: warning }
+          annotations:
+            summary: >-
+              configarr has not synced Sonarr and Radarr for {{ $value | humanizeDuration }}.
+              Find the newest run with `kubectl -n tv get jobs | grep configarr`, then read
+              `kubectl -n tv logs job/<name>`.
         - alert: NetworkPolicyNotEnforced
           # canary.yaml: the job fails when a connection opens that a NetworkPolicy must block.
           expr: max(kube_job_failed{namespace="monitoring", job_name=~"netpol-canary-.*"}) > 0

@@ -64,8 +64,12 @@ kubectl -n tailscale exec $TS -c tailscale -- tailscale status         # direct 
 - **Alertmanager → Discord.** Alertmanager groups the alerts by namespace and alert name. It sends
   an active alert again each 12 hours, and it sends a message when the problem is solved.
   `platform/monitoring/monitors.yaml` adds alerts for the Pi temperature, the tunnel, the memory
-  pressure, and `BackupMissing` (no successful backup of a namespace for 36 hours). To test
-  Alertmanager:
+  pressure, `BackupMissing` (no successful backup of a namespace for 36 hours) and
+  `ConfigarrNotSyncing` (no successful configarr run for 4 hours). A failed Job sends
+  `KubeJobFailed` to Discord, except a scheduled configarr run: a short internet outage fails a run
+  or two, and the next run fixes it. The failed Job stays, and Prometheus and Alertmanager show its
+  `KubeJobFailed` as active until you delete the Job (`kubectl -n tv delete job <name>`).
+  To test Alertmanager:
   ```bash
   kubectl -n monitoring port-forward svc/kube-prometheus-stack-alertmanager 9093 &
   curl -XPOST localhost:9093/api/v2/alerts -H 'Content-Type: application/json' \
